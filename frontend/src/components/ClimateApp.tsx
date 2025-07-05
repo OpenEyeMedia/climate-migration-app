@@ -642,7 +642,7 @@ const ClimateApp = () => {
                   <div className="pl-6 flex items-center justify-center text-gray-500">
                     <div className="text-center">
                       <Globe size={48} className="mx-auto mb-4 opacity-50" />
-                      <p>Analyzing {targetLocation}...</p>
+                      <p>Analyzing {targetLocation.display_name}...</p>
                     </div>
                   </div>
                 ) : (
