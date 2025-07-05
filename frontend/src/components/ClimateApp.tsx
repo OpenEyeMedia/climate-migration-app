@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react';
-import { Search, MapPin, TrendingUp, Shield, Heart, Zap, Globe, ArrowRight, Star, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Search, MapPin, TrendingUp, Shield, Zap, Globe, ArrowRight, Star, AlertTriangle, CheckCircle } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 // API Configuration
@@ -257,11 +257,6 @@ const ClimateApp = () => {
 
   const renderClimateAnalysis = (analysis: ClimateAnalysis, isTarget: boolean = false) => {
     // Ensure proper data formatting
-    const formatTemperature = (temp: number | undefined): string => {
-      if (typeof temp !== 'number' || isNaN(temp)) return '--';
-      return `${Math.round(temp * 10) / 10}°C`;
-    };
-    
     const formatVariation = (variation: number | undefined): string => {
       if (typeof variation !== 'number' || isNaN(variation)) return '--';
       const sign = variation >= 0 ? '+' : '';
