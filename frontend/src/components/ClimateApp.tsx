@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
-import { Search, MapPin, TrendingUp, Users, Shield, Heart, Zap, Globe, ArrowRight, Star, Plus, X, AlertTriangle, CheckCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, MapPin, TrendingUp, Users, Shield, Heart, Zap, Globe, ArrowRight, Star, AlertTriangle, CheckCircle } from 'lucide-react';
 
 const ClimateApp = () => {
   const [currentLocation, setCurrentLocation] = useState('');
@@ -25,7 +25,6 @@ const ClimateApp = () => {
   // Real API integration functions
   const fetchClimateData = async (location: string) => {
     try {
-      // OpenMeteo Climate API integration
       const geocodingResponse = await fetch(
         `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=en&format=json`
       );
@@ -34,7 +33,6 @@ const ClimateApp = () => {
       if (geocoding.results && geocoding.results.length > 0) {
         const { latitude, longitude } = geocoding.results[0];
         
-        // Fetch climate projections
         const climateResponse = await fetch(
           `https://climate-api.open-meteo.com/v1/climate?latitude=${latitude}&longitude=${longitude}&models=CMCC_CM2_VHR4&daily=temperature_2m_max,precipitation_sum&start_date=2024-01-01&end_date=2050-12-31`
         );
@@ -53,29 +51,6 @@ const ClimateApp = () => {
     }
   };
 
-  const fetchWorldBankData = async (countryCode: string) => {
-    try {
-      // World Bank Climate Knowledge Portal
-      const response = await fetch(
-        `https://climateknowledgeportal.worldbank.org/api/country/${countryCode}/climatology`,
-        {
-          headers: {
-            'Accept': 'application/json',
-          }
-        }
-      );
-      
-      if (response.ok) {
-        return await response.json();
-      }
-      return null;
-    } catch (error) {
-      console.error('World Bank API error:', error);
-      return null;
-    }
-  };
-
-  // Sample data with real source integration points
   const topLocations = [
     {
       name: "Copenhagen, Denmark",
@@ -181,14 +156,11 @@ const ClimateApp = () => {
     setShowComparison(true);
     
     try {
-      // Simulate real API calls
       const currentData = await fetchClimateData(currentLocation);
       const targetData = targetLocation ? await fetchClimateData(targetLocation) : null;
       
-      // Here you would process the real API data
       console.log('Climate data fetched:', { currentData, targetData });
       
-      // Update API status
       setApiStatus(prev => ({
         ...prev,
         climate: currentData ? 'connected' : 'error'
@@ -208,11 +180,17 @@ const ClimateApp = () => {
     return 'bg-red-500';
   };
 
-  const MetricBar = ({ label, score, icon: Icon }: { label: string; score: number; icon: any }) => (
+  interface MetricBarProps {
+    label: string;
+    score: number;
+    icon: React.ComponentType<{ size?: number; className?: string }>;
+  }
+
+  const MetricBar = ({ label, score, icon: Icon }: MetricBarProps) => (
     <div className="flex items-center justify-between mb-3">
       <div className="flex items-center gap-2">
         <Icon size={16} className="text-gray-600" />
-        <span className="text-sm font-medium">{label}</span>
+        <span className="text-sm font-medium text-gray-700">{label}</span>
       </div>
       <div className="flex items-center gap-2">
         <div className="w-20 h-2 bg-gray-200 rounded-full">
@@ -221,7 +199,7 @@ const ClimateApp = () => {
             style={{ width: `${score}%` }}
           />
         </div>
-        <span className="text-sm font-bold w-8">{score}</span>
+        <span className="text-sm font-bold w-8 text-gray-800">{score}</span>
       </div>
     </div>
   );
@@ -233,7 +211,7 @@ const ClimateApp = () => {
       ) : (
         <AlertTriangle size={12} className="text-red-500" />
       )}
-      <span className={`text-xs ${status === 'connected' ? 'text-green-500' : 'text-red-500'}`}>
+      <span className={`text-xs ${status === 'connected' ? 'text-green-600' : 'text-red-600'}`}>
         {status === 'connected' ? 'Live' : 'Error'}
       </span>
     </div>
@@ -252,22 +230,21 @@ const ClimateApp = () => {
             IPCC, World Bank, UN Happiness Report, and Democracy Index
           </p>
           
-          {/* Live API Status */}
           <div className="flex justify-center gap-6 mt-6 text-sm">
             <div className="flex items-center gap-2">
-              <span>🌡️ Climate Data</span>
+              <span className="text-gray-700">🌡️ Climate Data</span>
               <StatusIndicator status={apiStatus.climate} />
             </div>
             <div className="flex items-center gap-2">
-              <span>🏛️ World Bank</span>
+              <span className="text-gray-700">🏛️ World Bank</span>
               <StatusIndicator status={apiStatus.worldBank} />
             </div>
             <div className="flex items-center gap-2">
-              <span>😊 Happiness Index</span>
+              <span className="text-gray-700">😊 Happiness Index</span>
               <StatusIndicator status={apiStatus.happiness} />
             </div>
             <div className="flex items-center gap-2">
-              <span>🗳️ Democracy Data</span>
+              <span className="text-gray-700">🗳️ Democracy Data</span>
               <StatusIndicator status={apiStatus.democracy} />
             </div>
           </div>
@@ -276,7 +253,7 @@ const ClimateApp = () => {
         {/* Location Input & Comparison */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-800">
               <MapPin className="text-blue-600" />
               Current Location
             </h3>
@@ -287,7 +264,7 @@ const ClimateApp = () => {
                 placeholder="Enter your current city..."
                 value={currentLocation}
                 onChange={(e) => setCurrentLocation(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 placeholder-gray-500"
               />
             </div>
             {currentLocation && (
@@ -298,7 +275,7 @@ const ClimateApp = () => {
           </div>
 
           <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-800">
               <Globe className="text-green-600" />
               Target Location (Optional)
             </h3>
@@ -309,7 +286,7 @@ const ClimateApp = () => {
                 placeholder="Where are you thinking of moving?"
                 value={targetLocation}
                 onChange={(e) => setTargetLocation(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-800 placeholder-gray-500"
               />
             </div>
           </div>
@@ -317,11 +294,11 @@ const ClimateApp = () => {
 
         {/* Priority Settings */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-          <h3 className="text-xl font-semibold mb-6">Your Priorities</h3>
+          <h3 className="text-xl font-semibold mb-6 text-gray-800">Your Priorities</h3>
           <div className="grid md:grid-cols-5 gap-4">
             {Object.entries(priorities).map(([key, value]) => (
               <div key={key} className="text-center">
-                <label className="block text-sm font-medium mb-2 capitalize">{key}</label>
+                <label className="block text-sm font-medium mb-2 capitalize text-gray-700">{key}</label>
                 <input
                   type="range"
                   min="1"
@@ -330,7 +307,7 @@ const ClimateApp = () => {
                   onChange={(e) => setPriorities({...priorities, [key]: parseInt(e.target.value)})}
                   className="w-full accent-blue-600"
                 />
-                <span className="text-sm font-bold">{value}/10</span>
+                <span className="text-sm font-bold text-gray-800">{value}/10</span>
               </div>
             ))}
           </div>
@@ -360,7 +337,7 @@ const ClimateApp = () => {
         {/* Comparison Results */}
         {showComparison && (
           <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-            <h3 className="text-2xl font-semibold mb-6 flex items-center gap-2">
+            <h3 className="text-2xl font-semibold mb-6 flex items-center gap-2 text-gray-800">
               <ArrowRight className="text-blue-600" />
               Climate Analysis: {currentLocation} {targetLocation && `vs ${targetLocation}`}
             </h3>
@@ -382,9 +359,9 @@ const ClimateApp = () => {
                   
                   <div className="mt-4 p-4 bg-blue-50 rounded-lg">
                     <h5 className="font-semibold text-blue-800 mb-2">Climate Projection (2050)</h5>
-                    <p className="text-sm mb-1"><strong>Temperature:</strong> +2.1°C warming</p>
-                    <p className="text-sm mb-1"><strong>Precipitation:</strong> +15% variability</p>
-                    <p className="text-sm"><strong>Key Risks:</strong> Increased heatwaves, flooding risk</p>
+                    <p className="text-sm mb-1 text-gray-700"><strong>Temperature:</strong> +2.1°C warming</p>
+                    <p className="text-sm mb-1 text-gray-700"><strong>Precipitation:</strong> +15% variability</p>
+                    <p className="text-sm text-gray-700"><strong>Key Risks:</strong> Increased heatwaves, flooding risk</p>
                   </div>
                   
                   <div className="mt-3 text-xs text-gray-500">
@@ -402,9 +379,9 @@ const ClimateApp = () => {
                     
                     <div className="mt-4 p-4 bg-green-50 rounded-lg">
                       <h5 className="font-semibold text-green-800 mb-2">Climate Projection (2050)</h5>
-                      <p className="text-sm mb-1"><strong>Temperature:</strong> +1.2°C warming</p>
-                      <p className="text-sm mb-1"><strong>Precipitation:</strong> +5% increase</p>
-                      <p className="text-sm"><strong>Key Benefits:</strong> Excellent adaptation infrastructure</p>
+                      <p className="text-sm mb-1 text-gray-700"><strong>Temperature:</strong> +1.2°C warming</p>
+                      <p className="text-sm mb-1 text-gray-700"><strong>Precipitation:</strong> +5% increase</p>
+                      <p className="text-sm text-gray-700"><strong>Key Benefits:</strong> Excellent adaptation infrastructure</p>
                     </div>
                     
                     <div className="mt-3 text-xs text-gray-500">
@@ -426,7 +403,7 @@ const ClimateApp = () => {
 
         {/* Top 5 Global Locations */}
         <div className="bg-white rounded-xl shadow-lg p-6">
-          <h3 className="text-2xl font-semibold mb-6 flex items-center gap-2">
+          <h3 className="text-2xl font-semibold mb-6 flex items-center gap-2 text-gray-800">
             <Star className="text-yellow-500" />
             Top 5 Climate-Safe Destinations
             <span className="text-sm font-normal text-gray-500 ml-2">
