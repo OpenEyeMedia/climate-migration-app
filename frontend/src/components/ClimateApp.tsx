@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Search, MapPin, TrendingUp, Users, Shield, Heart, Zap, Globe, ArrowRight, Star, AlertTriangle, CheckCircle } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 const ClimateApp = () => {
   const [currentLocation, setCurrentLocation] = useState('');
@@ -183,7 +184,7 @@ const ClimateApp = () => {
   interface MetricBarProps {
     label: string;
     score: number;
-    icon: React.ComponentType<{ size?: number; className?: string }>;
+    icon: LucideIcon;
   }
 
   const MetricBar = ({ label, score, icon: Icon }: MetricBarProps) => (
