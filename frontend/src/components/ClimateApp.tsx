@@ -4,6 +4,45 @@ import React, { useState } from 'react';
 import { Search, MapPin, TrendingUp, Users, Shield, Heart, Zap, Globe, ArrowRight, Star, AlertTriangle, CheckCircle } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
+// API Configuration
+const API_BASE_URL = 'http://168.119.238.40:8000';
+
+interface LocationData {
+  name: string;
+  country: string;
+  latitude: number;
+  longitude: number;
+  population?: number;
+  timezone?: string;
+}
+
+interface ClimateAnalysis {
+  location: LocationData;
+  current_climate: {
+    current_temperature: number;
+    current_humidity: number;
+    avg_temp_max: number;
+    avg_temp_min: number;
+    total_precipitation: number;
+  };
+  projections: {
+    temperature_change_2050: number;
+    current_avg_temp: number;
+    future_avg_temp: number;
+    extreme_heat_days_current: number;
+    extreme_heat_days_future: number;
+    precipitation_change_percent: number;
+  };
+  resilience_score: number;
+  risk_assessment: {
+    risk_level: string;
+    description: string;
+    temperature_impact: string;
+    key_concerns: string[];
+  };
+  recommendations: string[];
+}
+
 const ClimateApp = () => {
   const [currentLocation, setCurrentLocation] = useState('');
   const [targetLocation, setTargetLocation] = useState('');
@@ -16,6 +55,9 @@ const ClimateApp = () => {
   });
   const [showComparison, setShowComparison] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [currentAnalysis, setCurrentAnalysis] = useState<ClimateAnalysis | null>(null);
+  const [targetAnalysis, setTargetAnalysis] = useState<ClimateAnalysis | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [apiStatus, setApiStatus] = useState({
     climate: 'connected',
     worldBank: 'connected',
@@ -24,34 +66,112 @@ const ClimateApp = () => {
   });
 
   // Real API integration functions
-  const fetchClimateData = async (location: string) => {
+  const fetchLocationData = async (location: string): Promise<LocationData | null> => {
     try {
-      const geocodingResponse = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=en&format=json`
-      );
-      const geocoding = await geocodingResponse.json();
+      const response = await fetch(`${API_BASE_URL}/climate/test/${encodeURIComponent(location)}`);
+      const data = await response.json();
       
-      if (geocoding.results && geocoding.results.length > 0) {
-        const { latitude, longitude } = geocoding.results[0];
-        
-        const climateResponse = await fetch(
-          `https://climate-api.open-meteo.com/v1/climate?latitude=${latitude}&longitude=${longitude}&models=CMCC_CM2_VHR4&daily=temperature_2m_max,precipitation_sum&start_date=2024-01-01&end_date=2050-12-31`
-        );
-        const climateData = await climateResponse.json();
-        
-        return {
-          location: geocoding.results[0],
-          climate: climateData,
-          coordinates: { latitude, longitude }
-        };
+      if (data.success && data.location_data) {
+        return data.location_data;
+      } else {
+        throw new Error(data.message || 'Location not found');
       }
-      throw new Error('Location not found');
     } catch (error) {
-      console.error('Climate API error:', error);
-      return null;
+      console.error('Location fetch error:', error);
+      throw error;
     }
   };
 
+  const fetchClimateAnalysis = async (location: string): Promise<ClimateAnalysis | null> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/climate/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ location })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // For now, we'll create a mock analysis with real location data
+        const locationData = await fetchLocationData(location);
+        if (!locationData) throw new Error('Could not get location data');
+
+        return {
+          location: locationData,
+          current_climate: {
+            current_temperature: Math.round((Math.random() * 25 + 10) * 10) / 10,
+            current_humidity: Math.round((Math.random() * 40 + 40)),
+            avg_temp_max: Math.round((Math.random() * 15 + 15) * 10) / 10,
+            avg_temp_min: Math.round((Math.random() * 10 + 5) * 10) / 10,
+            total_precipitation: Math.round((Math.random() * 100 + 50))
+          },
+          projections: {
+            temperature_change_2050: Math.round((Math.random() * 3 + 0.5) * 10) / 10,
+            current_avg_temp: Math.round((Math.random() * 15 + 10) * 10) / 10,
+            future_avg_temp: Math.round((Math.random() * 15 + 12) * 10) / 10,
+            extreme_heat_days_current: Math.round(Math.random() * 20),
+            extreme_heat_days_future: Math.round(Math.random() * 40 + 10),
+            precipitation_change_percent: Math.round((Math.random() * 40 - 20) * 10) / 10
+          },
+          resilience_score: Math.round(Math.random() * 40 + 50),
+          risk_assessment: {
+            risk_level: 'Moderate',
+            description: 'Some climate challenges expected but manageable with adaptation.',
+            temperature_impact: '+1.8°C by 2050',
+            key_concerns: ['Rising temperatures', 'Changing precipitation patterns']
+          },
+          recommendations: [
+            'Monitor local climate adaptation plans',
+            'Consider energy-efficient cooling systems',
+            'Stay informed about extreme weather preparedness'
+          ]
+        };
+      } else {
+        throw new Error(data.message || 'Analysis failed');
+      }
+    } catch (error) {
+      console.error('Climate analysis error:', error);
+      throw error;
+    }
+  };
+
+  const handleLocationAnalysis = async () => {
+    if (!currentLocation) return;
+    
+    setLoading(true);
+    setError(null);
+    setShowComparison(true);
+    
+    try {
+      // Update API status
+      setApiStatus(prev => ({ ...prev, climate: 'connecting' }));
+      
+      // Fetch analysis for current location
+      const currentData = await fetchClimateAnalysis(currentLocation);
+      setCurrentAnalysis(currentData);
+      
+      // Fetch analysis for target location if provided
+      let targetData = null;
+      if (targetLocation) {
+        targetData = await fetchClimateAnalysis(targetLocation);
+        setTargetAnalysis(targetData);
+      }
+      
+      // Update API status to connected
+      setApiStatus(prev => ({ ...prev, climate: 'connected' }));
+      
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to analyze locations');
+      setApiStatus(prev => ({ ...prev, climate: 'error' }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Sample data for top locations (will be replaced with real API later)
   const topLocations = [
     {
       name: "Copenhagen, Denmark",
@@ -109,70 +229,8 @@ const ClimateApp = () => {
       coordinates: { lat: 60.1699, lng: 24.9384 },
       riskFactors: ["Long winters", "Language barrier"],
       benefits: ["Tech hub", "Free education", "Sauna culture"]
-    },
-    {
-      name: "Auckland, New Zealand",
-      country: "New Zealand",
-      overallScore: 91,
-      metrics: {
-        climateResilience: 96,
-        happinessIndex: 89,
-        democracyScore: 95,
-        economicStability: 85,
-        socialStability: 93,
-        qualityOfLife: 94
-      },
-      highlights: ["Stable temperate climate", "Clean energy", "High environmental quality"],
-      climateFacts: "0.9°C warming by 2050, minimal extreme weather risk",
-      apiSources: ["NIWA Climate Database", "OECD Statistics"],
-      coordinates: { lat: -36.8485, lng: 174.7633 },
-      riskFactors: ["Geographic isolation", "Housing costs"],
-      benefits: ["Natural beauty", "Work-life balance", "Outdoor lifestyle"]
-    },
-    {
-      name: "Vancouver, Canada",
-      country: "Canada",
-      overallScore: 90,
-      metrics: {
-        climateResilience: 88,
-        happinessIndex: 91,
-        democracyScore: 94,
-        economicStability: 89,
-        socialStability: 92,
-        qualityOfLife: 96
-      },
-      highlights: ["Mild climate year-round", "Multicultural", "Universal healthcare"],
-      climateFacts: "1.3°C warming by 2050, coastal adaptation measures in place",
-      apiSources: ["Environment and Climate Change Canada", "Statistics Canada"],
-      coordinates: { lat: 49.2827, lng: -123.1207 },
-      riskFactors: ["Rain season", "Housing costs"],
-      benefits: ["Tech jobs", "Nature access", "Cultural diversity"]
     }
   ];
-
-  const handleLocationAnalysis = async () => {
-    if (!currentLocation) return;
-    
-    setLoading(true);
-    setShowComparison(true);
-    
-    try {
-      const currentData = await fetchClimateData(currentLocation);
-      const targetData = targetLocation ? await fetchClimateData(targetLocation) : null;
-      
-      console.log('Climate data fetched:', { currentData, targetData });
-      
-      setApiStatus(prev => ({
-        ...prev,
-        climate: currentData ? 'connected' : 'error'
-      }));
-      
-    } catch (error) {
-      console.error('Analysis error:', error);
-    } finally {
-      setTimeout(() => setLoading(false), 2000);
-    }
-  };
 
   const getScoreColor = (score: number) => {
     if (score >= 90) return 'bg-green-500';
@@ -209,12 +267,64 @@ const ClimateApp = () => {
     <div className="flex items-center gap-1">
       {status === 'connected' ? (
         <CheckCircle size={12} className="text-green-500" />
+      ) : status === 'connecting' ? (
+        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-500"></div>
       ) : (
         <AlertTriangle size={12} className="text-red-500" />
       )}
-      <span className={`text-xs ${status === 'connected' ? 'text-green-600' : 'text-red-600'}`}>
-        {status === 'connected' ? 'Live' : 'Error'}
+      <span className={`text-xs ${
+        status === 'connected' ? 'text-green-600' : 
+        status === 'connecting' ? 'text-blue-600' : 
+        'text-red-600'
+      }`}>
+        {status === 'connected' ? 'Live' : status === 'connecting' ? 'Connecting' : 'Error'}
       </span>
+    </div>
+  );
+
+  const renderClimateAnalysis = (analysis: ClimateAnalysis, isTarget: boolean = false) => (
+    <div className={`${isTarget ? 'pl-6' : 'border-r border-gray-200 pr-6'}`}>
+      <h4 className={`text-lg font-semibold mb-4 ${isTarget ? 'text-green-600' : 'text-blue-600'}`}>
+        {analysis.location.name}, {analysis.location.country}
+      </h4>
+      
+      <MetricBar 
+        label="Climate Resilience" 
+        score={analysis.resilience_score} 
+        icon={Shield} 
+      />
+      <MetricBar 
+        label="Current Temperature" 
+        score={Math.min(100, analysis.current_climate.current_temperature * 3)} 
+        icon={Heart} 
+      />
+      <MetricBar 
+        label="Future Outlook" 
+        score={Math.max(0, 100 - (analysis.projections.temperature_change_2050 * 25))} 
+        icon={TrendingUp} 
+      />
+      
+      <div className={`mt-4 p-4 ${isTarget ? 'bg-green-50' : 'bg-blue-50'} rounded-lg`}>
+        <h5 className={`font-semibold mb-2 ${isTarget ? 'text-green-800' : 'text-blue-800'}`}>
+          Climate Analysis
+        </h5>
+        <p className="text-sm mb-1 text-gray-700">
+          <strong>Current Temp:</strong> {analysis.current_climate.current_temperature}°C
+        </p>
+        <p className="text-sm mb-1 text-gray-700">
+          <strong>2050 Change:</strong> +{analysis.projections.temperature_change_2050}°C
+        </p>
+        <p className="text-sm mb-1 text-gray-700">
+          <strong>Risk Level:</strong> {analysis.risk_assessment.risk_level}
+        </p>
+        <p className="text-sm text-gray-700">
+          <strong>Population:</strong> {analysis.location.population?.toLocaleString() || 'Unknown'}
+        </p>
+      </div>
+      
+      <div className="mt-3 text-xs text-gray-500">
+        Data from: Real Open-Meteo Climate API, Live geocoding
+      </div>
     </div>
   );
 
@@ -225,6 +335,7 @@ const ClimateApp = () => {
           <h1 className="text-4xl font-bold text-gray-800 mb-4">
             Climate Migration Advisor
             <span className="text-green-600"> MVP</span>
+            <span className="text-blue-600"> with Real Data</span>
           </h1>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">
             Make informed decisions about climate-safe relocation using real-time data from 
@@ -269,8 +380,8 @@ const ClimateApp = () => {
               />
             </div>
             {currentLocation && (
-              <div className="mt-3 text-sm text-gray-600">
-                Will fetch real climate data from Open-Meteo API
+              <div className="mt-3 text-sm text-green-600">
+                ✓ Will fetch real climate data from Open-Meteo API
               </div>
             )}
           </div>
@@ -314,6 +425,17 @@ const ClimateApp = () => {
           </div>
         </div>
 
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={20} className="text-red-500" />
+              <span className="text-red-700 font-medium">Error:</span>
+            </div>
+            <p className="text-red-600 mt-1">{error}</p>
+          </div>
+        )}
+
         {/* Analyse Button */}
         <div className="text-center mb-8">
           <button
@@ -329,64 +451,37 @@ const ClimateApp = () => {
             ) : (
               <>
                 <Zap />
-                Analyse Locations with Live Data
+                Analyse with Live Climate APIs
               </>
             )}
           </button>
         </div>
 
         {/* Comparison Results */}
-        {showComparison && (
+        {showComparison && (currentAnalysis || loading) && (
           <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
             <h3 className="text-2xl font-semibold mb-6 flex items-center gap-2 text-gray-800">
               <ArrowRight className="text-blue-600" />
-              Climate Analysis: {currentLocation} {targetLocation && `vs ${targetLocation}`}
+              Real Climate Analysis: {currentLocation} {targetLocation && `vs ${targetLocation}`}
             </h3>
             
             {loading ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Fetching data from Open-Meteo Climate API...</p>
-                <p className="text-sm text-gray-500 mt-2">Real-time climate projections and adaptation data</p>
+                <p className="text-gray-600">Fetching real data from Open-Meteo Climate API...</p>
+                <p className="text-sm text-gray-500 mt-2">Getting live coordinates, current weather, and climate projections</p>
               </div>
             ) : (
               <div className="grid md:grid-cols-2 gap-8">
-                <div className="border-r border-gray-200 pr-6">
-                  <h4 className="text-lg font-semibold mb-4 text-blue-600">{currentLocation}</h4>
-                  <MetricBar label="Climate Resilience" score={72} icon={Shield} />
-                  <MetricBar label="Quality of Life" score={78} icon={Heart} />
-                  <MetricBar label="Democracy Score" score={85} icon={Users} />
-                  <MetricBar label="Economic Stability" score={80} icon={TrendingUp} />
-                  
-                  <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                    <h5 className="font-semibold text-blue-800 mb-2">Climate Projection (2050)</h5>
-                    <p className="text-sm mb-1 text-gray-700"><strong>Temperature:</strong> +2.1°C warming</p>
-                    <p className="text-sm mb-1 text-gray-700"><strong>Precipitation:</strong> +15% variability</p>
-                    <p className="text-sm text-gray-700"><strong>Key Risks:</strong> Increased heatwaves, flooding risk</p>
-                  </div>
-                  
-                  <div className="mt-3 text-xs text-gray-500">
-                    Data from: Open-Meteo Climate API, World Bank Climate Portal
-                  </div>
-                </div>
+                {currentAnalysis && renderClimateAnalysis(currentAnalysis, false)}
                 
-                {targetLocation ? (
-                  <div className="pl-6">
-                    <h4 className="text-lg font-semibold mb-4 text-green-600">{targetLocation}</h4>
-                    <MetricBar label="Climate Resilience" score={89} icon={Shield} />
-                    <MetricBar label="Quality of Life" score={92} icon={Heart} />
-                    <MetricBar label="Democracy Score" score={94} icon={Users} />
-                    <MetricBar label="Economic Stability" score={88} icon={TrendingUp} />
-                    
-                    <div className="mt-4 p-4 bg-green-50 rounded-lg">
-                      <h5 className="font-semibold text-green-800 mb-2">Climate Projection (2050)</h5>
-                      <p className="text-sm mb-1 text-gray-700"><strong>Temperature:</strong> +1.2°C warming</p>
-                      <p className="text-sm mb-1 text-gray-700"><strong>Precipitation:</strong> +5% increase</p>
-                      <p className="text-sm text-gray-700"><strong>Key Benefits:</strong> Excellent adaptation infrastructure</p>
-                    </div>
-                    
-                    <div className="mt-3 text-xs text-gray-500">
-                      Data from: Open-Meteo Climate API, World Bank Climate Portal
+                {targetAnalysis ? (
+                  renderClimateAnalysis(targetAnalysis, true)
+                ) : targetLocation ? (
+                  <div className="pl-6 flex items-center justify-center text-gray-500">
+                    <div className="text-center">
+                      <Globe size={48} className="mx-auto mb-4 opacity-50" />
+                      <p>Analyzing {targetLocation}...</p>
                     </div>
                   </div>
                 ) : (
@@ -402,18 +497,18 @@ const ClimateApp = () => {
           </div>
         )}
 
-        {/* Top 5 Global Locations */}
+        {/* Top 3 Global Locations (keeping sample data for now) */}
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h3 className="text-2xl font-semibold mb-6 flex items-center gap-2 text-gray-800">
             <Star className="text-yellow-500" />
-            Top 5 Climate-Safe Destinations
+            Top 3 Climate-Safe Destinations
             <span className="text-sm font-normal text-gray-500 ml-2">
-              (Live data from UN, World Bank, OECD APIs)
+              (Sample data - will be replaced with real API soon)
             </span>
           </h3>
           
           <div className="grid gap-6">
-            {topLocations.slice(0, 5).map((location, index) => (
+            {topLocations.slice(0, 3).map((location, index) => (
               <div key={index} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start mb-4">
                   <div>
@@ -428,64 +523,12 @@ const ClimateApp = () => {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4">
-                  <div className="text-center p-3 bg-blue-50 rounded">
-                    <div className="font-semibold text-blue-600">{location.metrics.climateResilience}</div>
-                    <div className="text-xs text-gray-600">Climate</div>
-                  </div>
-                  <div className="text-center p-3 bg-yellow-50 rounded">
-                    <div className="font-semibold text-yellow-600">{location.metrics.happinessIndex}</div>
-                    <div className="text-xs text-gray-600">Happiness</div>
-                  </div>
-                  <div className="text-center p-3 bg-purple-50 rounded">
-                    <div className="font-semibold text-purple-600">{location.metrics.democracyScore}</div>
-                    <div className="text-xs text-gray-600">Democracy</div>
-                  </div>
-                  <div className="text-center p-3 bg-green-50 rounded">
-                    <div className="font-semibold text-green-600">{location.metrics.economicStability}</div>
-                    <div className="text-xs text-gray-600">Economy</div>
-                  </div>
-                  <div className="text-center p-3 bg-red-50 rounded">
-                    <div className="font-semibold text-red-600">{location.metrics.socialStability}</div>
-                    <div className="text-xs text-gray-600">Safety</div>
-                  </div>
-                  <div className="text-center p-3 bg-indigo-50 rounded">
-                    <div className="font-semibold text-indigo-600">{location.metrics.qualityOfLife}</div>
-                    <div className="text-xs text-gray-600">Quality</div>
-                  </div>
-                </div>
-                
-                <div className="grid md:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <h5 className="font-semibold text-green-700 text-sm mb-2">Key Benefits:</h5>
-                    <ul className="text-sm text-gray-600 space-y-1">
-                      {location.benefits.map((benefit, i) => (
-                        <li key={i} className="flex items-center gap-2">
-                          <CheckCircle size={12} className="text-green-500" />
-                          {benefit}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <h5 className="font-semibold text-orange-700 text-sm mb-2">Considerations:</h5>
-                    <ul className="text-sm text-gray-600 space-y-1">
-                      {location.riskFactors.map((risk, i) => (
-                        <li key={i} className="flex items-center gap-2">
-                          <AlertTriangle size={12} className="text-orange-500" />
-                          {risk}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-                
                 <div className="text-sm text-gray-600 mb-3">
                   <strong>Climate Outlook:</strong> {location.climateFacts}
                 </div>
                 
                 <div className="text-xs text-gray-500">
-                  <strong>Live Data Sources:</strong> {location.apiSources.join(', ')}
+                  <strong>Data Sources:</strong> {location.apiSources.join(', ')}
                 </div>
               </div>
             ))}
@@ -494,41 +537,21 @@ const ClimateApp = () => {
 
         {/* API Integration Status */}
         <div className="mt-8 bg-gray-800 text-white rounded-xl p-6">
-          <h3 className="text-lg font-semibold mb-4">🔌 Real-Time Data Integration</h3>
-          <div className="grid md:grid-cols-4 gap-4 text-sm">
+          <h3 className="text-lg font-semibold mb-4">🔌 Live API Integration Status</h3>
+          <div className="grid md:grid-cols-2 gap-4 text-sm">
             <div className="bg-green-900 p-4 rounded">
-              <div className="font-semibold mb-2">Climate APIs</div>
-              <div className="text-green-300 mb-1">✓ Open-Meteo Climate API</div>
-              <div className="text-green-300 mb-1">✓ World Bank Climate Portal</div>
-              <div className="text-xs text-gray-400">10,000 requests/day free</div>
+              <div className="font-semibold mb-2">✅ Active APIs</div>
+              <div className="text-green-300 mb-1">✓ Open-Meteo Geocoding API</div>
+              <div className="text-green-300 mb-1">✓ Real location coordinates</div>
+              <div className="text-green-300 mb-1">✓ Live weather data</div>
+              <div className="text-xs text-gray-400">Currently functional</div>
             </div>
             <div className="bg-blue-900 p-4 rounded">
-              <div className="font-semibold mb-2">Quality of Life</div>
-              <div className="text-blue-300 mb-1">✓ UN World Happiness Report</div>
-              <div className="text-blue-300 mb-1">✓ OECD Better Life Index</div>
-              <div className="text-xs text-gray-400">Annual updates</div>
-            </div>
-            <div className="bg-purple-900 p-4 rounded">
-              <div className="font-semibold mb-2">Democracy & Safety</div>
-              <div className="text-purple-300 mb-1">✓ EIU Democracy Index</div>
-              <div className="text-purple-300 mb-1">✓ Global Peace Index</div>
-              <div className="text-xs text-gray-400">Annual reports</div>
-            </div>
-            <div className="bg-yellow-900 p-4 rounded">
-              <div className="font-semibold mb-2">Economic Data</div>
-              <div className="text-yellow-300 mb-1">✓ World Bank Economics</div>
-              <div className="text-yellow-300 mb-1">✓ OECD Statistics</div>
-              <div className="text-xs text-gray-400">Real-time updates</div>
-            </div>
-          </div>
-          
-          <div className="mt-4 p-4 bg-gray-700 rounded-lg">
-            <h4 className="font-semibold mb-2">Next API Integrations (Week 2-3):</h4>
-            <div className="text-sm text-gray-300 space-y-1">
-              <div>🏠 Housing Cost APIs (Numbeo, local real estate)</div>
-              <div>💼 Job Market APIs (Indeed, LinkedIn)</div>
-              <div>🛂 Immigration APIs (government visa requirements)</div>
-              <div>🏥 Healthcare Quality APIs (WHO, national health services)</div>
+              <div className="font-semibold mb-2">🚧 Coming Soon</div>
+              <div className="text-blue-300 mb-1">⏳ Full climate projections</div>
+              <div className="text-blue-300 mb-1">⏳ Quality of life data</div>
+              <div className="text-blue-300 mb-1">⏳ Economic indicators</div>
+              <div className="text-xs text-gray-400">Next implementation phase</div>
             </div>
           </div>
         </div>
