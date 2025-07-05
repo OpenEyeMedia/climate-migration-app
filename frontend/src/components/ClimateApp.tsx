@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react';
-import { Search, MapPin, TrendingUp, Users, Shield, Heart, Zap, Globe, ArrowRight, Star, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Search, MapPin, TrendingUp, Shield, Heart, Zap, Globe, ArrowRight, Star, AlertTriangle, CheckCircle } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 // API Configuration
