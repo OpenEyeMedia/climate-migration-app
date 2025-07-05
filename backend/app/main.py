@@ -84,6 +84,29 @@ async def test_climate(city: str):
             "message": f"Error fetching data for: {city}"
         }
 
+@app.get("/locations/search")
+async def search_locations(q: str, limit: int = 10):
+    """Search for locations using Open-Meteo Geocoding API"""
+    try:
+        from app.services.climate_service import ClimateDataService
+        
+        service = ClimateDataService()
+        locations = await service.search_locations(q, limit)
+        
+        return {
+            "success": True,
+            "locations": locations,
+            "query": q
+        }
+        
+    except Exception as e:
+        print(f"Location search error: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "locations": []
+        }
+
 @app.post("/climate/analyze")
 async def analyze_location(request: dict):
     """Get comprehensive climate analysis using real data"""

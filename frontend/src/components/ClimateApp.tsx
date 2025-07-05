@@ -1,13 +1,30 @@
 'use client'
 
-import React, { useState } from 'react';
-import { Search, MapPin, TrendingUp, Shield, Zap, Globe, ArrowRight, Star, AlertTriangle, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, MapPin, TrendingUp, Shield, Zap, Globe, ArrowRight, Star, AlertTriangle, CheckCircle, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 // API Configuration
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
   ? 'https://climate-migration-app.openeyemedia.net/api'
   : 'http://localhost:8000';
+
+interface LocationOption {
+  name: string;
+  country: string;
+  admin1?: string;
+  latitude: number;
+  longitude: number;
+  population?: number;
+  timezone?: string;
+  display_name: string;
+}
+
+interface LocationSearchProps {
+  placeholder: string;
+  onLocationSelect: (location: LocationOption) => void;
+  selectedLocation: LocationOption | null;
+}
 
 interface LocationData {
   name: string;
@@ -63,9 +80,139 @@ interface ClimateAnalysis {
   recommendations: string[];
 }
 
+const LocationSearch: React.FC<LocationSearchProps> = ({ placeholder, onLocationSelect, selectedLocation }) => {
+  const [query, setQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<LocationOption[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  
+  const searchLocations = async (searchQuery: string) => {
+    if (searchQuery.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/locations/search?q=${encodeURIComponent(searchQuery)}&limit=8`);
+      const data = await response.json();
+      
+      if (data.success && data.locations) {
+        setSuggestions(data.locations);
+        setShowDropdown(true);
+      } else {
+        setSuggestions([]);
+      }
+    } catch (error) {
+      console.error('Location search error:', error);
+      setSuggestions([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (query && !selectedLocation) {
+        searchLocations(query);
+      }
+    }, 300);
+    
+    return () => clearTimeout(timeoutId);
+  }, [query, selectedLocation]);
+  
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+  
+  const handleLocationSelect = (location: LocationOption) => {
+    onLocationSelect(location);
+    setQuery(location.display_name);
+    setShowDropdown(false);
+    setSuggestions([]);
+  };
+  
+  const handleClearSelection = () => {
+    onLocationSelect(null as any);
+    setQuery('');
+    setSuggestions([]);
+    setShowDropdown(false);
+  };
+  
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setQuery(value);
+    if (selectedLocation) {
+      onLocationSelect(null as any);
+    }
+  };
+  
+  return (
+    <div ref={searchRef} className="relative">
+      <div className="relative">
+        <Search className="absolute left-3 top-3 text-gray-400" size={20} />
+        <input
+          type="text"
+          placeholder={placeholder}
+          value={selectedLocation ? selectedLocation.display_name : query}
+          onChange={handleInputChange}
+          onFocus={() => {
+            if (suggestions.length > 0) setShowDropdown(true);
+          }}
+          className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 placeholder-gray-500"
+        />
+        {selectedLocation && (
+          <button
+            onClick={handleClearSelection}
+            className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+          >
+            <X size={20} />
+          </button>
+        )}
+        {isLoading && (
+          <div className="absolute right-3 top-3">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+          </div>
+        )}
+      </div>
+      
+      {showDropdown && suggestions.length > 0 && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+          {suggestions.map((location, index) => (
+            <button
+              key={index}
+              onClick={() => handleLocationSelect(location)}
+              className="w-full text-left px-4 py-3 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none border-b border-gray-100 last:border-b-0"
+            >
+              <div className="font-medium text-gray-900">{location.display_name}</div>
+              {location.population && (
+                <div className="text-sm text-gray-500">Population: {location.population.toLocaleString()}</div>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+      
+      {selectedLocation && (
+        <div className="mt-2 text-sm text-green-600">
+          ✓ Selected: {selectedLocation.display_name}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ClimateApp = () => {
-  const [currentLocation, setCurrentLocation] = useState('');
-  const [targetLocation, setTargetLocation] = useState('');
+  const [currentLocation, setCurrentLocation] = useState<LocationOption | null>(null);
+  const [targetLocation, setTargetLocation] = useState<LocationOption | null>(null);
   const [priorities, setPriorities] = useState({
     climate: 8,
     economy: 7,
@@ -122,14 +269,14 @@ const ClimateApp = () => {
       // Update API status
       setApiStatus(prev => ({ ...prev, climate: 'connecting' }));
       
-      // Fetch analysis for current location
-      const currentData = await fetchClimateAnalysis(currentLocation);
+      // Fetch analysis for current location using display name
+      const currentData = await fetchClimateAnalysis(currentLocation.display_name);
       setCurrentAnalysis(currentData);
       
       // Fetch analysis for target location if provided
       let targetData = null;
       if (targetLocation) {
-        targetData = await fetchClimateAnalysis(targetLocation);
+        targetData = await fetchClimateAnalysis(targetLocation.display_name);
         setTargetAnalysis(targetData);
       }
       
@@ -381,26 +528,21 @@ const ClimateApp = () => {
           </div>
         </header>
 
-        {/* Location Input & Comparison */}
+        {/* Enhanced Location Input & Comparison */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-lg p-6">
             <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-800">
               <MapPin className="text-blue-600" />
               Current Location
             </h3>
-            <div className="relative">
-              <Search className="absolute left-3 top-3 text-gray-400" size={20} />
-              <input
-                type="text"
-                placeholder="Enter your current city..."
-                value={currentLocation}
-                onChange={(e) => setCurrentLocation(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 placeholder-gray-500"
-              />
-            </div>
+            <LocationSearch
+              placeholder="Type to search for your current city..."
+              onLocationSelect={setCurrentLocation}
+              selectedLocation={currentLocation}
+            />
             {currentLocation && (
-              <div className="mt-3 text-sm text-green-600">
-                ✓ Will fetch real climate data from Open-Meteo API
+              <div className="mt-3 text-sm text-blue-600">
+                ✓ Will analyze real climate data for {currentLocation.name}, {currentLocation.country}
               </div>
             )}
           </div>
@@ -410,16 +552,16 @@ const ClimateApp = () => {
               <Globe className="text-green-600" />
               Target Location (Optional)
             </h3>
-            <div className="relative">
-              <Search className="absolute left-3 top-3 text-gray-400" size={20} />
-              <input
-                type="text"
-                placeholder="Where are you thinking of moving?"
-                value={targetLocation}
-                onChange={(e) => setTargetLocation(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-800 placeholder-gray-500"
-              />
-            </div>
+            <LocationSearch
+              placeholder="Type to search for potential destination..."
+              onLocationSelect={setTargetLocation}
+              selectedLocation={targetLocation}
+            />
+            {targetLocation && (
+              <div className="mt-3 text-sm text-green-600">
+                ✓ Will compare with {targetLocation.name}, {targetLocation.country}
+              </div>
+            )}
           </div>
         </div>
 
@@ -481,7 +623,7 @@ const ClimateApp = () => {
           <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
             <h3 className="text-2xl font-semibold mb-6 flex items-center gap-2 text-gray-800">
               <ArrowRight className="text-blue-600" />
-              Real Climate Analysis: {currentLocation} {targetLocation && `vs ${targetLocation}`}
+              Real Climate Analysis: {currentLocation?.display_name || 'Current Location'} {targetLocation && `vs ${targetLocation.display_name}`}
             </h3>
             
             {loading ? (
