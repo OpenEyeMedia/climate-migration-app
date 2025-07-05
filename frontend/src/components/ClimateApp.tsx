@@ -5,7 +5,7 @@ import { Search, MapPin, TrendingUp, Shield, Heart, Zap, Globe, ArrowRight, Star
 import type { LucideIcon } from 'lucide-react';
 
 // API Configuration
-const API_BASE_URL = 'https://168.119.238.40:8000';
+const API_BASE_URL = 'https://climate-migration-app.openeyemedia.net/api';
 
 interface LocationData {
   name: string;
