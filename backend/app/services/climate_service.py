@@ -8,17 +8,25 @@ from app.core.config import settings
 
 class ClimateDataService:
     def __init__(self):
-        self.redis_client = redis.from_url(settings.redis_url)
+        # Try to initialize Redis, but fall back to no caching if it fails
+        try:
+            self.redis_client = redis.from_url(settings.redis_url)
+            self.use_cache = True
+        except Exception as e:
+            print(f"Redis not available, running without cache: {e}")
+            self.redis_client = None
+            self.use_cache = False
         self.cache_ttl = 3600 * 24  # 24 hours
         
     async def get_location_coordinates(self, location_name: str) -> Optional[Dict]:
         """Get coordinates for a location using geocoding API"""
         cache_key = f"geocoding:{location_name.lower()}"
         
-        # Check cache first
-        cached_data = self.redis_client.get(cache_key)
-        if cached_data:
-            return json.loads(cached_data)
+        # Check cache first (if available)
+        if self.use_cache and self.redis_client:
+            cached_data = self.redis_client.get(cache_key)
+            if cached_data:
+                return json.loads(cached_data)
         
         async with httpx.AsyncClient() as client:
             try:
@@ -45,12 +53,13 @@ class ClimateDataService:
                         "timezone": result.get("timezone")
                     }
                     
-                    # Cache the result
-                    self.redis_client.setex(
-                        cache_key, 
-                        self.cache_ttl * 7,  # Cache geocoding for 7 days
-                        json.dumps(location_data)
-                    )
+                    # Cache the result (if available)
+                    if self.use_cache and self.redis_client:
+                        self.redis_client.setex(
+                            cache_key, 
+                            self.cache_ttl * 7,  # Cache geocoding for 7 days
+                            json.dumps(location_data)
+                        )
                     
                     return location_data
                     
@@ -64,10 +73,11 @@ class ClimateDataService:
         """Get current climate data from Open-Meteo"""
         cache_key = f"current_climate:{latitude}:{longitude}"
         
-        # Check cache
-        cached_data = self.redis_client.get(cache_key)
-        if cached_data:
-            return json.loads(cached_data)
+        # Check cache (if available)
+        if self.use_cache and self.redis_client:
+            cached_data = self.redis_client.get(cache_key)
+            if cached_data:
+                return json.loads(cached_data)
         
         async with httpx.AsyncClient() as client:
             try:
@@ -108,8 +118,9 @@ class ClimateDataService:
                     "data_source": "open-meteo"
                 }
                 
-                # Cache for 1 hour
-                self.redis_client.setex(cache_key, 3600, json.dumps(climate_data))
+                # Cache for 1 hour (if available)
+                if self.use_cache and self.redis_client:
+                    self.redis_client.setex(cache_key, 3600, json.dumps(climate_data))
                 
                 return climate_data
                 
@@ -121,10 +132,11 @@ class ClimateDataService:
         """Get climate projections from Open-Meteo Climate API"""
         cache_key = f"climate_projections:{latitude}:{longitude}"
         
-        # Check cache
-        cached_data = self.redis_client.get(cache_key)
-        if cached_data:
-            return json.loads(cached_data)
+        # Check cache (if available)
+        if self.use_cache and self.redis_client:
+            cached_data = self.redis_client.get(cache_key)
+            if cached_data:
+                return json.loads(cached_data)
         
         async with httpx.AsyncClient() as client:
             try:
@@ -172,7 +184,8 @@ class ClimateDataService:
                 }
                 
                 # Cache for 24 hours (climate projections don't change often)
-                self.redis_client.setex(cache_key, self.cache_ttl, json.dumps(projections))
+                if self.use_cache and self.redis_client:
+                    self.redis_client.setex(cache_key, self.cache_ttl, json.dumps(projections))
                 
                 return projections
                 

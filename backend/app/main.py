@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import httpx
 import asyncio
 from typing import Dict, Optional
+import os
 
 app = FastAPI(
     title="Climate Migration API",
@@ -84,25 +85,33 @@ async def test_climate(city: str):
         }
 
 @app.post("/climate/analyze")
-async def analyze_simple(request: dict):
-    """Simple climate analysis endpoint"""
+async def analyze_location(request: dict):
+    """Get comprehensive climate analysis using real data"""
     location = request.get("location", "")
     
     if not location:
-        return {"error": "Location parameter required"}
+        return {"success": False, "error": "Location parameter required"}
     
-    # For now, return mock data with real structure
-    return {
-        "success": True,
-        "location": location,
-        "analysis": {
-            "current_temperature": 22.5,
-            "climate_resilience_score": 78,
-            "temperature_change_2050": 1.8,
-            "risk_level": "Moderate",
-            "recommendations": [
-                "Monitor climate trends",
-                "Consider adaptation measures"
-            ]
+    try:
+        # Import the climate service here to avoid circular imports
+        from app.services.climate_service import ClimateDataService
+        
+        service = ClimateDataService()
+        analysis = await service.get_comprehensive_climate_analysis(location)
+        
+        if not analysis:
+            return {
+                "success": False,
+                "error": f"Could not find climate data for location: {location}"
+            }
+        
+        return {
+            "success": True,
+            "data": analysis
         }
-    }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Error analyzing location: {str(e)}"
+        }

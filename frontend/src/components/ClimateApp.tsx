@@ -84,6 +84,7 @@ const ClimateApp = () => {
 
   const fetchClimateAnalysis = async (location: string): Promise<ClimateAnalysis | null> => {
     try {
+      // Use the real comprehensive climate analysis from backend
       const response = await fetch(`${API_BASE_URL}/climate/analyze`, {
         method: 'POST',
         headers: {
@@ -92,45 +93,13 @@ const ClimateApp = () => {
         body: JSON.stringify({ location })
       });
       
-      const data = await response.json();
+      const result = await response.json();
       
-      if (data.success) {
-        // For now, we'll create a mock analysis with real location data
-        const locationData = await fetchLocationData(location);
-        if (!locationData) throw new Error('Could not get location data');
-
-        return {
-          location: locationData,
-          current_climate: {
-            current_temperature: parseFloat((Math.random() * 25 + 10).toFixed(1)),
-            current_humidity: Math.round((Math.random() * 40 + 40)),
-            avg_temp_max: parseFloat((Math.random() * 15 + 15).toFixed(1)),
-            avg_temp_min: parseFloat((Math.random() * 10 + 5).toFixed(1)),
-            total_precipitation: Math.round((Math.random() * 100 + 50))
-          },
-          projections: {
-            temperature_change_2050: parseFloat((Math.random() * 3 + 0.5).toFixed(1)),
-            current_avg_temp: parseFloat((Math.random() * 15 + 10).toFixed(1)),
-            future_avg_temp: parseFloat((Math.random() * 15 + 12).toFixed(1)),
-            extreme_heat_days_current: Math.round(Math.random() * 20),
-            extreme_heat_days_future: Math.round(Math.random() * 40 + 10),
-            precipitation_change_percent: parseFloat((Math.random() * 40 - 20).toFixed(1))
-          },
-          resilience_score: Math.round(Math.random() * 40 + 50),
-          risk_assessment: {
-            risk_level: 'Moderate',
-            description: 'Some climate challenges expected but manageable with adaptation.',
-            temperature_impact: '+1.8°C by 2050',
-            key_concerns: ['Rising temperatures', 'Changing precipitation patterns']
-          },
-          recommendations: [
-            'Monitor local climate adaptation plans',
-            'Consider energy-efficient cooling systems',
-            'Stay informed about extreme weather preparedness'
-          ]
-        };
+      if (result.success && result.data) {
+        // Return the real climate analysis data from backend
+        return result.data;
       } else {
-        throw new Error(data.message || 'Analysis failed');
+        throw new Error(result.detail || result.message || 'Analysis failed');
       }
     } catch (error) {
       console.error('Climate analysis error:', error);
