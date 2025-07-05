@@ -22,7 +22,7 @@ interface LocationOption {
 
 interface LocationSearchProps {
   placeholder: string;
-  onLocationSelect: (location: LocationOption) => void;
+  onLocationSelect: (location: LocationOption | null) => void;
   selectedLocation: LocationOption | null;
 }
 
@@ -141,7 +141,7 @@ const LocationSearch: React.FC<LocationSearchProps> = ({ placeholder, onLocation
   };
   
   const handleClearSelection = () => {
-    onLocationSelect(null as any);
+    onLocationSelect(null);
     setQuery('');
     setSuggestions([]);
     setShowDropdown(false);
@@ -151,7 +151,7 @@ const LocationSearch: React.FC<LocationSearchProps> = ({ placeholder, onLocation
     const value = e.target.value;
     setQuery(value);
     if (selectedLocation) {
-      onLocationSelect(null as any);
+      onLocationSelect(null);
     }
   };
   
