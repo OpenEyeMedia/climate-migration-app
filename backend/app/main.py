@@ -89,6 +89,8 @@ async def analyze_location(request: dict):
     """Get comprehensive climate analysis using real data"""
     location = request.get("location", "")
     
+    print(f"Received request for location: {location}")
+    
     if not location:
         return {"success": False, "error": "Location parameter required"}
     
@@ -97,13 +99,20 @@ async def analyze_location(request: dict):
         from app.services.climate_service import ClimateDataService
         
         service = ClimateDataService()
+        print(f"Created ClimateDataService, analyzing {location}...")
+        
         analysis = await service.get_comprehensive_climate_analysis(location)
         
         if not analysis:
+            print(f"No analysis returned for {location}")
             return {
                 "success": False,
                 "error": f"Could not find climate data for location: {location}"
             }
+        
+        print(f"Analysis completed for {location}")
+        print(f"Current temp: {analysis.get('current_climate', {}).get('current_temperature')}")
+        print(f"Resilience: {analysis.get('resilience_score')}")
         
         return {
             "success": True,
@@ -111,6 +120,9 @@ async def analyze_location(request: dict):
         }
         
     except Exception as e:
+        print(f"Error analyzing {location}: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return {
             "success": False,
             "error": f"Error analyzing location: {str(e)}"

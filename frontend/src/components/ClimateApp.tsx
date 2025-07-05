@@ -251,51 +251,68 @@ const ClimateApp = () => {
     </div>
   );
 
-  const renderClimateAnalysis = (analysis: ClimateAnalysis, isTarget: boolean = false) => (
-    <div className={`${isTarget ? 'pl-6' : 'border-r border-gray-200 pr-6'}`}>
-      <h4 className={`text-lg font-semibold mb-4 ${isTarget ? 'text-green-600' : 'text-blue-600'}`}>
-        {analysis.location.name}, {analysis.location.country}
-      </h4>
-      
-      <MetricBar 
-        label="Climate Resilience" 
-        score={analysis.resilience_score} 
-        icon={Shield} 
-      />
-      <MetricBar 
-        label="Current Temperature" 
-        score={Math.min(100, analysis.current_climate.current_temperature * 3)} 
-        icon={Heart} 
-      />
-      <MetricBar 
-        label="Future Outlook" 
-        score={Math.max(0, 100 - (analysis.projections.temperature_change_2050 * 25))} 
-        icon={TrendingUp} 
-      />
-      
-      <div className={`mt-4 p-4 ${isTarget ? 'bg-green-50' : 'bg-blue-50'} rounded-lg`}>
-        <h5 className={`font-semibold mb-2 ${isTarget ? 'text-green-800' : 'text-blue-800'}`}>
-          Climate Analysis
-        </h5>
-        <p className="text-sm mb-1 text-gray-700">
-          <strong>Current Temp:</strong> {analysis.current_climate.current_temperature}°C
-        </p>
-        <p className="text-sm mb-1 text-gray-700">
-          <strong>2050 Change:</strong> +{analysis.projections.temperature_change_2050}°C
-        </p>
-        <p className="text-sm mb-1 text-gray-700">
-          <strong>Risk Level:</strong> {analysis.risk_assessment.risk_level}
-        </p>
-        <p className="text-sm text-gray-700">
-          <strong>Population:</strong> {analysis.location.population?.toLocaleString() || 'Unknown'}
-        </p>
+  const renderClimateAnalysis = (analysis: ClimateAnalysis, isTarget: boolean = false) => {
+    // Ensure proper data formatting
+    const formatTemperature = (temp: number | undefined): string => {
+      if (typeof temp !== 'number' || isNaN(temp)) return '--';
+      return `${Math.round(temp * 10) / 10}°C`;
+    };
+    
+    const formatScore = (score: number | undefined): number => {
+      if (typeof score !== 'number' || isNaN(score)) return 0;
+      return Math.min(100, Math.max(0, Math.round(score)));
+    };
+    
+    const currentTemp = analysis.current_climate?.current_temperature;
+    const tempChange = analysis.projections?.temperature_change_2050;
+    const resilience = analysis.resilience_score;
+    
+    return (
+      <div className={`${isTarget ? 'pl-6' : 'border-r border-gray-200 pr-6'}`}>
+        <h4 className={`text-lg font-semibold mb-4 ${isTarget ? 'text-green-600' : 'text-blue-600'}`}>
+          {analysis.location.name}, {analysis.location.country}
+        </h4>
+        
+        <MetricBar 
+          label="Climate Resilience" 
+          score={formatScore(resilience)} 
+          icon={Shield} 
+        />
+        <MetricBar 
+          label="Current Temperature" 
+          score={currentTemp ? Math.min(100, Math.max(0, currentTemp * 2)) : 50} 
+          icon={Heart} 
+        />
+        <MetricBar 
+          label="Future Outlook" 
+          score={tempChange ? Math.max(0, 100 - (tempChange * 25)) : 75} 
+          icon={TrendingUp} 
+        />
+        
+        <div className={`mt-4 p-4 ${isTarget ? 'bg-green-50' : 'bg-blue-50'} rounded-lg`}>
+          <h5 className={`font-semibold mb-2 ${isTarget ? 'text-green-800' : 'text-blue-800'}`}>
+            Climate Analysis
+          </h5>
+          <p className="text-sm mb-1 text-gray-700">
+            <strong>Current Temp:</strong> {formatTemperature(currentTemp)}
+          </p>
+          <p className="text-sm mb-1 text-gray-700">
+            <strong>2050 Change:</strong> +{tempChange ? `${Math.round(tempChange * 10) / 10}°C` : '--'}
+          </p>
+          <p className="text-sm mb-1 text-gray-700">
+            <strong>Risk Level:</strong> {analysis.risk_assessment?.risk_level || 'Unknown'}
+          </p>
+          <p className="text-sm text-gray-700">
+            <strong>Population:</strong> {analysis.location.population?.toLocaleString() || 'Unknown'}
+          </p>
+        </div>
+        
+        <div className="mt-3 text-xs text-gray-500">
+          Data from: Real Open-Meteo Climate API, Live geocoding
+        </div>
       </div>
-      
-      <div className="mt-3 text-xs text-gray-500">
-        Data from: Real Open-Meteo Climate API, Live geocoding
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-green-50 to-blue-100">
