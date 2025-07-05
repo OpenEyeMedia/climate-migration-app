@@ -5,7 +5,7 @@ import { Search, MapPin, TrendingUp, Users, Shield, Heart, Zap, Globe, ArrowRigh
 import type { LucideIcon } from 'lucide-react';
 
 // API Configuration
-const API_BASE_URL = 'http://168.119.238.40:8000';
+const API_BASE_URL = 'https://168.119.238.40:8000';
 
 interface LocationData {
   name: string;
