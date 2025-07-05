@@ -66,22 +66,6 @@ const ClimateApp = () => {
   });
 
   // Real API integration functions
-  const fetchLocationData = async (location: string): Promise<LocationData | null> => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/climate/test/${encodeURIComponent(location)}`);
-      const data = await response.json();
-      
-      if (data.success && data.location_data) {
-        return data.location_data;
-      } else {
-        throw new Error(data.message || 'Location not found');
-      }
-    } catch (error) {
-      console.error('Location fetch error:', error);
-      throw error;
-    }
-  };
-
   const fetchClimateAnalysis = async (location: string): Promise<ClimateAnalysis | null> => {
     try {
       // Use the real comprehensive climate analysis from backend
