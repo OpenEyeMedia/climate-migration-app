@@ -283,38 +283,43 @@ class ClimateDataService:
     
     async def calculate_climate_resilience_score(self, climate_data: Dict, projections: Dict) -> int:
         """Calculate a climate resilience score (0-100)"""
-        score = 100
-        
-        # Penalize for temperature increases
-        temp_change = projections.get("temperature_change_2050", 0)
-        if temp_change > 3:
-            score -= 40
-        elif temp_change > 2:
-            score -= 25
-        elif temp_change > 1.5:
-            score -= 15
-        elif temp_change > 1:
-            score -= 10
-        
-        # Penalize for extreme heat days
-        extreme_heat_increase = projections.get("extreme_heat_days_future", 0) - projections.get("extreme_heat_days_current", 0)
-        if extreme_heat_increase > 30:
-            score -= 20
-        elif extreme_heat_increase > 15:
-            score -= 10
-        elif extreme_heat_increase > 5:
-            score -= 5
-        
-        # Penalize for extreme precipitation changes
-        precip_change = abs(projections.get("precipitation_change_percent", 0))
-        if precip_change > 30:
-            score -= 15
-        elif precip_change > 20:
-            score -= 10
-        elif precip_change > 10:
-            score -= 5
-        
-        return max(0, min(100, score))
+        try:
+            score = 100
+            
+            # Penalize for temperature increases
+            temp_change = projections.get("temperature_change_2050", 0)
+            if temp_change > 3:
+                score -= 40
+            elif temp_change > 2:
+                score -= 25
+            elif temp_change > 1.5:
+                score -= 15
+            elif temp_change > 1:
+                score -= 10
+            
+            # Penalize for extreme heat days
+            extreme_heat_increase = projections.get("extreme_heat_days_future", 0) - projections.get("extreme_heat_days_current", 0)
+            if extreme_heat_increase > 30:
+                score -= 20
+            elif extreme_heat_increase > 15:
+                score -= 10
+            elif extreme_heat_increase > 5:
+                score -= 5
+            
+            # Penalize for extreme precipitation changes
+            precip_change = abs(projections.get("precipitation_change_percent", 0))
+            if precip_change > 30:
+                score -= 15
+            elif precip_change > 20:
+                score -= 10
+            elif precip_change > 10:
+                score -= 5
+            
+            return max(0, min(100, score))
+            
+        except Exception as e:
+            print(f"Error calculating resilience score: {e}")
+            return 75  # Default score
     
     def _generate_risk_assessment(self, projections: Dict, resilience_score: int) -> Dict:
         """Generate human-readable risk assessment"""
