@@ -102,19 +102,19 @@ const ClimateApp = () => {
         return {
           location: locationData,
           current_climate: {
-            current_temperature: Math.round((Math.random() * 25 + 10) * 10) / 10,
+            current_temperature: parseFloat((Math.random() * 25 + 10).toFixed(1)),
             current_humidity: Math.round((Math.random() * 40 + 40)),
-            avg_temp_max: Math.round((Math.random() * 15 + 15) * 10) / 10,
-            avg_temp_min: Math.round((Math.random() * 10 + 5) * 10) / 10,
+            avg_temp_max: parseFloat((Math.random() * 15 + 15).toFixed(1)),
+            avg_temp_min: parseFloat((Math.random() * 10 + 5).toFixed(1)),
             total_precipitation: Math.round((Math.random() * 100 + 50))
           },
           projections: {
-            temperature_change_2050: Math.round((Math.random() * 3 + 0.5) * 10) / 10,
-            current_avg_temp: Math.round((Math.random() * 15 + 10) * 10) / 10,
-            future_avg_temp: Math.round((Math.random() * 15 + 12) * 10) / 10,
+            temperature_change_2050: parseFloat((Math.random() * 3 + 0.5).toFixed(1)),
+            current_avg_temp: parseFloat((Math.random() * 15 + 10).toFixed(1)),
+            future_avg_temp: parseFloat((Math.random() * 15 + 12).toFixed(1)),
             extreme_heat_days_current: Math.round(Math.random() * 20),
             extreme_heat_days_future: Math.round(Math.random() * 40 + 10),
-            precipitation_change_percent: Math.round((Math.random() * 40 - 20) * 10) / 10
+            precipitation_change_percent: parseFloat((Math.random() * 40 - 20).toFixed(1))
           },
           resilience_score: Math.round(Math.random() * 40 + 50),
           risk_assessment: {
