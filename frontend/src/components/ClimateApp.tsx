@@ -27,6 +27,24 @@ interface ClimateAnalysis {
     avg_temp_min: number;
     total_precipitation: number;
   };
+  climate_variations: {
+    current_month: number;
+    month_name: string;
+    temp_max_variation: number;
+    temp_min_variation: number;
+    rainfall_variation_percent: number;
+    baseline_period: string;
+    recent_period: string;
+    data_quality: string;
+  };
+  annual_temp_increase: {
+    increase: number;
+    recent_avg: number;
+    baseline_avg: number;
+    baseline_period: string;
+    recent_period: string;
+    confidence: string;
+  };
   projections: {
     temperature_change_2050: number;
     current_avg_temp: number;
@@ -244,13 +262,36 @@ const ClimateApp = () => {
       return `${Math.round(temp * 10) / 10}°C`;
     };
     
+    const formatVariation = (variation: number | undefined): string => {
+      if (typeof variation !== 'number' || isNaN(variation)) return '--';
+      const sign = variation >= 0 ? '+' : '';
+      return `${sign}${Math.round(variation * 10) / 10}°C`;
+    };
+    
+    const formatPercentage = (percent: number | undefined): string => {
+      if (typeof percent !== 'number' || isNaN(percent)) return '--';
+      const sign = percent >= 0 ? '+' : '';
+      return `${sign}${Math.round(percent * 10) / 10}%`;
+    };
+    
     const formatScore = (score: number | undefined): number => {
       if (typeof score !== 'number' || isNaN(score)) return 0;
       return Math.min(100, Math.max(0, Math.round(score)));
     };
     
-    const currentTemp = analysis.current_climate?.current_temperature;
-    const tempChange = analysis.projections?.temperature_change_2050;
+    // Get variation scores for metric bars (0-100 scale)
+    const getVariationScore = (variation: number, range: number): number => {
+      // Convert variation to 0-100 scale where 0 = -range, 50 = 0, 100 = +range
+      return Math.min(100, Math.max(0, ((variation + range) / (2 * range)) * 100));
+    };
+    
+    const getRainfallScore = (percent: number): number => {
+      // Convert -100% to +200% range to 0-100 scale
+      return Math.min(100, Math.max(0, ((percent + 100) / 300) * 100));
+    };
+    
+    const variations = analysis.climate_variations;
+    const tempIncrease = analysis.annual_temp_increase;
     const resilience = analysis.resilience_score;
     
     return (
@@ -260,30 +301,41 @@ const ClimateApp = () => {
         </h4>
         
         <MetricBar 
-          label="Climate Resilience" 
-          score={formatScore(resilience)} 
-          icon={Shield} 
-        />
-        <MetricBar 
-          label="Current Temperature" 
-          score={currentTemp ? Math.min(100, Math.max(0, currentTemp * 2)) : 50} 
-          icon={Heart} 
-        />
-        <MetricBar 
-          label="Future Outlook" 
-          score={tempChange ? Math.max(0, 100 - (tempChange * 25)) : 75} 
+          label={`${variations?.month_name || 'Current'} Max Temp Variation`}
+          score={getVariationScore(variations?.temp_max_variation || 0, 5)} 
           icon={TrendingUp} 
         />
+        <div className="text-xs text-gray-500 mb-2 ml-6">
+          {formatVariation(variations?.temp_max_variation)} vs {variations?.baseline_period || '1990s'}
+        </div>
+        
+        <MetricBar 
+          label={`${variations?.month_name || 'Current'} Min Temp Variation`}
+          score={getVariationScore(variations?.temp_min_variation || 0, 5)} 
+          icon={TrendingUp} 
+        />
+        <div className="text-xs text-gray-500 mb-2 ml-6">
+          {formatVariation(variations?.temp_min_variation)} vs {variations?.baseline_period || '1990s'}
+        </div>
+        
+        <MetricBar 
+          label={`${variations?.month_name || 'Current'} Rainfall Variation`}
+          score={getRainfallScore(variations?.rainfall_variation_percent || 0)} 
+          icon={Shield} 
+        />
+        <div className="text-xs text-gray-500 mb-3 ml-6">
+          {formatPercentage(variations?.rainfall_variation_percent)} vs {variations?.baseline_period || '1990s'}
+        </div>
         
         <div className={`mt-4 p-4 ${isTarget ? 'bg-green-50' : 'bg-blue-50'} rounded-lg`}>
           <h5 className={`font-semibold mb-2 ${isTarget ? 'text-green-800' : 'text-blue-800'}`}>
             Climate Analysis
           </h5>
           <p className="text-sm mb-1 text-gray-700">
-            <strong>Current Temp:</strong> {formatTemperature(currentTemp)}
+            <strong>Annual Temp Increase:</strong> {formatVariation(tempIncrease?.increase)} since {tempIncrease?.baseline_period || '1990s'}
           </p>
           <p className="text-sm mb-1 text-gray-700">
-            <strong>2050 Change:</strong> +{tempChange ? `${Math.round(tempChange * 10) / 10}°C` : '--'}
+            <strong>Climate Resilience:</strong> {formatScore(resilience)}/100
           </p>
           <p className="text-sm mb-1 text-gray-700">
             <strong>Risk Level:</strong> {analysis.risk_assessment?.risk_level || 'Unknown'}
@@ -294,7 +346,7 @@ const ClimateApp = () => {
         </div>
         
         <div className="mt-3 text-xs text-gray-500">
-          Data from: Real Open-Meteo Climate API, Live geocoding
+          Data: {variations?.data_quality === 'high' ? 'Real' : 'Estimated'} climate variations | {variations?.recent_period || '2020-2024'} vs {variations?.baseline_period || '1990-2020'}
         </div>
       </div>
     );
