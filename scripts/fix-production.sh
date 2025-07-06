@@ -109,15 +109,35 @@ log "Step 5: Installing dependencies"
 # Install backend dependencies
 cd backend
 
+# Debug information for production server
+log "Current directory: $(pwd)"
+log "Directory contents:"
+ls -la
+
+# Check if we're in the right place
+if [ ! -f "requirements.txt" ]; then
+    error "requirements.txt not found in current directory"
+fi
+
 # Check if virtual environment exists and is properly set up
-if [ ! -f "venv/bin/activate" ]; then
-    log "Creating virtual environment..."
+if [ ! -f "venv/bin/activate" ] || [ ! -f "venv/bin/pip" ]; then
+    log "Creating or recreating virtual environment..."
+    
+    # Remove existing virtual environment if it's corrupted
+    if [ -d "venv" ]; then
+        log "Removing existing virtual environment..."
+        rm -rf venv
+    fi
+    
     python3 -m venv venv
     
     # Verify virtual environment was created properly
     if [ ! -f "venv/bin/pip" ]; then
         error "Virtual environment pip executable not found"
     fi
+    
+    # Make sure pip is executable
+    chmod +x venv/bin/pip
 fi
 
 # Activate virtual environment and install dependencies
@@ -133,10 +153,30 @@ if [ ! -f "venv/bin/pip" ]; then
     error "pip not found in virtual environment. Virtual environment may be corrupted."
 fi
 
-# Use the virtual environment's pip explicitly
+# Make sure pip is executable
+if [ ! -x "venv/bin/pip" ]; then
+    log "Making pip executable..."
+    chmod +x venv/bin/pip
+fi
+
+# Use the virtual environment's pip explicitly with fallback
 log "Installing Python dependencies..."
-./venv/bin/pip install --upgrade pip
-./venv/bin/pip install -r requirements.txt
+
+# Try upgrading pip first
+if ./venv/bin/pip install --upgrade pip; then
+    success "Pip upgraded successfully"
+else
+    warning "Pip upgrade failed, trying alternative approach..."
+    ./venv/bin/python -m pip install --upgrade pip
+fi
+
+# Install requirements with fallback
+if ./venv/bin/pip install -r requirements.txt; then
+    success "Requirements installed successfully"
+else
+    warning "Pip install failed, trying alternative approach..."
+    ./venv/bin/python -m pip install -r requirements.txt
+fi
 
 # Verify installation
 log "Verifying installation..."

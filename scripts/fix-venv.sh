@@ -47,9 +47,34 @@ log "Step 1: Checking current Python environment"
 python3 --version
 which python3
 
+# Check if we're in the right directory
+log "Current directory: $(pwd)"
+log "Directory contents:"
+ls -la
+
+# Check if we can access the backend directory
+if [ ! -d "backend" ]; then
+    log "Backend directory not found, checking if we're in the right place..."
+    ls -la
+    if [ -d "app" ]; then
+        log "Found app directory, we might be in the backend already"
+    else
+        error "Cannot find backend or app directory"
+    fi
+fi
+
 log "Step 2: Checking current virtual environment"
 
-cd "$DEPLOY_DIR/backend"
+# Navigate to backend directory
+if [ -d "backend" ]; then
+    cd backend
+    log "Changed to backend directory"
+elif [ -d "app" ]; then
+    log "Already in backend directory"
+else
+    cd "$DEPLOY_DIR/backend"
+    log "Changed to backend directory via DEPLOY_DIR"
+fi
 
 if [ -d "venv" ]; then
     log "Found existing virtual environment"
@@ -67,6 +92,12 @@ else
 fi
 
 log "Step 3: Creating fresh virtual environment"
+
+# Remove existing virtual environment if it exists
+if [ -d "venv" ]; then
+    log "Removing existing virtual environment..."
+    rm -rf venv
+fi
 
 # Create new virtual environment
 log "Creating virtual environment with python3 -m venv venv..."
@@ -93,6 +124,9 @@ if [ ! -f "venv/bin/pip" ]; then
     error "Virtual environment pip executable not found"
 fi
 
+# Make sure pip is executable
+chmod +x venv/bin/pip
+
 success "Virtual environment created successfully"
 
 log "Step 4: Activating and verifying virtual environment"
@@ -118,13 +152,31 @@ if [ ! -f "venv/bin/pip" ]; then
     error "pip not found in virtual environment. Virtual environment may be corrupted."
 fi
 
-# Upgrade pip first
+# Check if pip is executable
+if [ ! -x "venv/bin/pip" ]; then
+    log "Making pip executable..."
+    chmod +x venv/bin/pip
+fi
+
+# Try different approaches to install dependencies
 log "Upgrading pip..."
-./venv/bin/pip install --upgrade pip
+if ./venv/bin/pip install --upgrade pip; then
+    success "Pip upgraded successfully"
+else
+    warning "Pip upgrade failed, trying alternative approach..."
+    # Try using python -m pip instead
+    ./venv/bin/python -m pip install --upgrade pip
+fi
 
 # Install requirements
 log "Installing requirements..."
-./venv/bin/pip install -r requirements.txt
+if ./venv/bin/pip install -r requirements.txt; then
+    success "Requirements installed successfully"
+else
+    warning "Pip install failed, trying alternative approach..."
+    # Try using python -m pip instead
+    ./venv/bin/python -m pip install -r requirements.txt
+fi
 
 if [ $? -ne 0 ]; then
     error "Failed to install dependencies"
