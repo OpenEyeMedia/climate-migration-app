@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
 import asyncio
@@ -212,45 +212,34 @@ async def search_locations(q: str, limit: int = 10):
         }
 
 @app.post("/climate/analyze")
-async def analyze_location(request: dict):
+async def analyze_location(request: Request):
     """Get comprehensive climate analysis using real data"""
-    location = request.get("location", "")
-    
-    print(f"Received request for location: {location}")
-    
-    if not location:
-        return {"success": False, "error": "Location parameter required"}
-    
-    try:
-        # Import the climate service here to avoid circular imports
+    data = await request.json()
+    lat = data.get("latitude")
+    lon = data.get("longitude")
+    name = data.get("name")
+    country = data.get("country")
+    admin1 = data.get("admin1")
+
+    print(f"Received request for: name={name}, country={country}, admin1={admin1}, lat={lat}, lon={lon}")
+
+    if lat is not None and lon is not None:
+        # Use coordinates directly
+        location_str = f"{name}, {admin1}, {country}" if admin1 else f"{name}, {country}"
         from app.services.climate_service import ClimateDataService
-        
         service = ClimateDataService()
-        print(f"Created ClimateDataService, analyzing {location}...")
-        
-        analysis = await service.get_comprehensive_climate_analysis(location)
-        
+        analysis = await service.get_comprehensive_climate_analysis_by_coords(lat, lon, name, country, admin1)
         if not analysis:
-            print(f"No analysis returned for {location}")
-            return {
-                "success": False,
-                "error": f"Could not find climate data for location: {location}"
-            }
-        
-        print(f"Analysis completed for {location}")
-        print(f"Current temp: {analysis.get('current_climate', {}).get('current_temperature')}")
-        print(f"Resilience: {analysis.get('resilience_score')}")
-        
-        return {
-            "success": True,
-            "data": analysis
-        }
-        
-    except Exception as e:
-        print(f"Error analyzing {location}: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return {
-            "success": False,
-            "error": f"Error analyzing location: {str(e)}"
-        }
+            return {"success": False, "error": f"Could not find climate data for coordinates: {lat}, {lon}"}
+        return {"success": True, "data": analysis}
+    elif name:
+        # Fallback: use name/country/admin1
+        location_str = f"{name}, {admin1}, {country}" if admin1 else f"{name}, {country}"
+        from app.services.climate_service import ClimateDataService
+        service = ClimateDataService()
+        analysis = await service.get_comprehensive_climate_analysis(location_str)
+        if not analysis:
+            return {"success": False, "error": f"Could not find climate data for location: {location_str}"}
+        return {"success": True, "data": analysis}
+    else:
+        return {"success": False, "error": "Location parameter required"}

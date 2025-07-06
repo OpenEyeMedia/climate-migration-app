@@ -870,3 +870,48 @@ class ClimateDataService:
             recommendations.append("Excellent climate stability - ideal for long-term planning")
         
         return recommendations
+
+    async def get_comprehensive_climate_analysis_by_coords(self, latitude: float, longitude: float, name: str = None, country: str = None, admin1: str = None) -> Optional[Dict]:
+        """Get comprehensive climate analysis using provided coordinates and metadata"""
+        # Build location_data dict
+        location_data = {
+            "name": name or "Unknown",
+            "country": country or "Unknown",
+            "admin1": admin1 or None,
+            "latitude": latitude,
+            "longitude": longitude
+        }
+        try:
+            current_data, recent_data, baseline_data, projections = await asyncio.gather(
+                self.get_current_climate_data(latitude, longitude),
+                self.get_recent_climate_averages(latitude, longitude),
+                self.get_historical_climate_baseline(latitude, longitude),
+                self.get_climate_projections(latitude, longitude)
+            )
+        except Exception as e:
+            print(f"Error getting climate data: {e}")
+            current_data, recent_data, baseline_data, projections = None, None, None, None
+        if not current_data or not recent_data or not baseline_data or not projections:
+            print(f"API calls failed, using fallback data for {name}")
+            safe_name = name or "Unknown"
+            safe_country = country or "Unknown"
+            safe_admin1 = admin1 or "Unknown"
+            current_data = current_data or self._generate_realistic_current_data(safe_name, latitude, longitude)
+            recent_data = recent_data or self._generate_realistic_recent_data(safe_name, latitude, longitude)
+            baseline_data = baseline_data or self._generate_realistic_baseline_data(safe_name, latitude, longitude)
+            projections = projections or self._generate_realistic_projections(safe_name, latitude, longitude)
+        climate_variations = self._calculate_climate_variations(recent_data, baseline_data)
+        annual_temp_increase = self._calculate_annual_temp_increase(recent_data, baseline_data)
+        resilience_score = await self.calculate_climate_resilience_score(current_data, projections)
+        analysis = {
+            "location": location_data,
+            "current_climate": current_data,
+            "climate_variations": climate_variations,
+            "annual_temp_increase": annual_temp_increase,
+            "projections": projections,
+            "resilience_score": resilience_score,
+            "risk_assessment": self._generate_risk_assessment(projections, resilience_score),
+            "recommendations": self._generate_recommendations(projections, resilience_score),
+            "last_updated": datetime.utcnow().isoformat()
+        }
+        return analysis

@@ -31,6 +31,7 @@ interface LocationData {
   country: string;
   latitude: number;
   longitude: number;
+  admin1?: string;
   population?: number;
   timezone?: string;
 }
@@ -233,21 +234,17 @@ const ClimateApp = () => {
   });
 
   // Real API integration functions
-  const fetchClimateAnalysis = async (location: string): Promise<ClimateAnalysis | null> => {
+  const fetchClimateAnalysis = async (locationObj: any): Promise<ClimateAnalysis | null> => {
     try {
-      // Use the real comprehensive climate analysis from backend
       const response = await fetch(`${API_BASE_URL}/climate/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ location })
+        body: JSON.stringify(locationObj)
       });
-      
       const result = await response.json();
-      
       if (result.success && result.data) {
-        // Return the real climate analysis data from backend
         return result.data;
       } else {
         throw new Error(result.detail || result.message || 'Analysis failed');
@@ -269,14 +266,26 @@ const ClimateApp = () => {
       // Update API status
       setApiStatus(prev => ({ ...prev, climate: 'connecting' }));
       
-      // Fetch analysis for current location using city name only
-      const currentData = await fetchClimateAnalysis(currentLocation.name);
+      // Fetch analysis for current location using full geocoding object
+      const currentData = await fetchClimateAnalysis({
+        name: currentLocation.name,
+        country: currentLocation.country,
+        admin1: currentLocation.admin1,
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude
+      });
       setCurrentAnalysis(currentData);
       
       // Fetch analysis for target location if provided
       let targetData = null;
       if (targetLocation) {
-        targetData = await fetchClimateAnalysis(targetLocation.name);
+        targetData = await fetchClimateAnalysis({
+          name: targetLocation.name,
+          country: targetLocation.country,
+          admin1: targetLocation.admin1,
+          latitude: targetLocation.latitude,
+          longitude: targetLocation.longitude
+        });
         setTargetAnalysis(targetData);
       }
       
