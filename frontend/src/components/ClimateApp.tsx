@@ -234,7 +234,7 @@ const ClimateApp = () => {
   });
 
   // Real API integration functions
-  const fetchClimateAnalysis = async (locationObj: any): Promise<ClimateAnalysis | null> => {
+  const fetchClimateAnalysis = async (locationObj: LocationData): Promise<ClimateAnalysis | null> => {
     try {
       const response = await fetch(`${API_BASE_URL}/climate/analyze`, {
         method: 'POST',

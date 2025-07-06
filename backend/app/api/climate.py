@@ -2,11 +2,20 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, List, Optional
 from pydantic import BaseModel
 from app.services.climate_service import ClimateDataService
+import asyncio
 
 router = APIRouter()
 
 class LocationQuery(BaseModel):
-    location: str
+    # Support both old format (location string) and new format (full geocoding object)
+    location: Optional[str] = None
+    name: Optional[str] = None
+    country: Optional[str] = None
+    admin1: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    population: Optional[int] = None
+    timezone: Optional[str] = None
 
 class ComparisonQuery(BaseModel):
     current_location: str
@@ -18,12 +27,32 @@ async def analyze_location(query: LocationQuery):
     service = ClimateDataService()
     
     try:
-        analysis = await service.get_comprehensive_climate_analysis(query.location)
+        # If we have lat/lon coordinates, use them directly
+        if query.latitude is not None and query.longitude is not None:
+            print(f"Using coordinates directly: {query.latitude}, {query.longitude}")
+            analysis = await service.get_comprehensive_climate_analysis_by_coords(
+                query.latitude, 
+                query.longitude,
+                name=query.name or "Unknown",
+                country=query.country or "Unknown",
+                admin1=query.admin1 or "Unknown"
+            )
+        else:
+            # Fall back to geocoding by name
+            location_name = query.name or query.location
+            if not location_name:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Either coordinates (latitude/longitude) or location name must be provided"
+                )
+            print(f"Using geocoding for location: {location_name}")
+            analysis = await service.get_comprehensive_climate_analysis(location_name)
         
         if not analysis:
+            location_display = query.name or query.location or "Unknown"
             raise HTTPException(
                 status_code=404, 
-                detail=f"Could not find climate data for location: {query.location}"
+                detail=f"Could not find climate data for location: {location_display}"
             )
         
         return {
@@ -107,11 +136,11 @@ def _generate_comparison_insights(current: Dict, target: Dict) -> Dict:
 def _get_comparison_recommendation(current_score: int, target_score: int, current_temp: float, target_temp: float) -> str:
     """Get recommendation based on comparison"""
     if target_score > current_score + 10:
-        return f"Strong recommendation to consider {target['location']['name']} - significantly better climate resilience"
+        return "Strong recommendation to consider target location - significantly better climate resilience"
     elif target_score > current_score:
-        return f"Moderate improvement expected by moving to {target['location']['name']}"
+        return "Moderate improvement expected by moving to target location"
     elif target_score < current_score - 10:
-        return f"Current location has significantly better climate outlook"
+        return "Current location has significantly better climate outlook"
     else:
         return "Both locations have similar climate resilience profiles"
 
