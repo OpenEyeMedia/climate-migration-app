@@ -76,11 +76,14 @@ class ClimateDataService:
         
         # Check cache first (if available)
         if self.use_cache and self.redis_client:
-            cached_data = self.redis_client.get(cache_key)
-            if cached_data:
-                return json.loads(cached_data)
+            try:
+                cached_data = self.redis_client.get(cache_key)
+                if cached_data:
+                    return json.loads(cached_data)
+            except Exception as e:
+                print(f"Cache read error: {e}")
         
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=10.0) as client:
             try:
                 url = f"{settings.geocoding_api_url}/search"
                 params = {
@@ -90,10 +93,17 @@ class ClimateDataService:
                     "format": "json"
                 }
                 
+                print(f"Making geocoding request to: {url}")
+                print(f"Parameters: {params}")
+                
                 response = await client.get(url, params=params)
+                print(f"Geocoding response status: {response.status_code}")
+                
                 response.raise_for_status()
                 
                 data = response.json()
+                print(f"Geocoding response data: {data}")
+                
                 if data.get("results") and len(data["results"]) > 0:
                     result = data["results"][0]
                     location_data = {
@@ -105,16 +115,30 @@ class ClimateDataService:
                         "timezone": result.get("timezone")
                     }
                     
+                    print(f"Found location data: {location_data}")
+                    
                     # Cache the result (if available)
                     if self.use_cache and self.redis_client:
-                        self.redis_client.setex(
-                            cache_key, 
-                            self.cache_ttl * 7,  # Cache geocoding for 7 days
-                            json.dumps(location_data)
-                        )
+                        try:
+                            self.redis_client.setex(
+                                cache_key, 
+                                self.cache_ttl * 7,  # Cache geocoding for 7 days
+                                json.dumps(location_data)
+                            )
+                        except Exception as e:
+                            print(f"Cache write error: {e}")
                     
                     return location_data
+                else:
+                    print(f"No results found for location: {location_name}")
+                    return None
                     
+            except httpx.HTTPStatusError as e:
+                print(f"HTTP error for geocoding {location_name}: {e.response.status_code} - {e.response.text}")
+                return None
+            except httpx.RequestError as e:
+                print(f"Request error for geocoding {location_name}: {e}")
+                return None
             except Exception as e:
                 print(f"Geocoding error for {location_name}: {e}")
                 return None

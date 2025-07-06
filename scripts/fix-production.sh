@@ -130,14 +130,22 @@ if [ ! -f "venv/bin/activate" ] || [ ! -f "venv/bin/pip" ]; then
     fi
     
     python3 -m venv venv
-    
-    # Verify virtual environment was created properly
-    if [ ! -f "venv/bin/pip" ]; then
-        error "Virtual environment pip executable not found"
-    fi
+
+# Show what was created
+log "Virtual environment creation completed. Contents:"
+ls -la venv/bin/
+
+# Verify virtual environment was created properly
+if [ ! -f "venv/bin/pip" ]; then
+    error "Virtual environment pip executable not found"
+fi
     
     # Make sure pip is executable
-    chmod +x venv/bin/pip
+chmod +x venv/bin/pip
+
+# List available Python executables in venv
+log "Available Python executables in virtual environment:"
+ls -la venv/bin/python*
 fi
 
 # Activate virtual environment and install dependencies
@@ -236,13 +244,14 @@ else
 fi
 
 # Test API endpoint
+log "Testing API endpoint with London, UK..."
 if curl -s -X POST http://localhost:8000/climate/analyze \
     -H 'Content-Type: application/json' \
     -d '{"location": "London, UK"}' | grep -q '"success": true'; then
     success "API test passed"
 else
     warning "API test failed - checking logs"
-    pm2 logs climate-backend --lines 5
+    pm2 logs climate-backend --lines 10
 fi
 
 log "Step 10: Testing public access"

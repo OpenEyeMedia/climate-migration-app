@@ -107,6 +107,10 @@ if [ $? -ne 0 ]; then
     error "Failed to create virtual environment"
 fi
 
+# Show what was created
+log "Virtual environment creation completed. Contents:"
+ls -la venv/bin/
+
 # Verify virtual environment was created properly
 if [ ! -d "venv" ]; then
     error "Virtual environment directory was not created"
@@ -126,6 +130,10 @@ fi
 
 # Make sure pip is executable
 chmod +x venv/bin/pip
+
+# List available Python executables in venv
+log "Available Python executables in virtual environment:"
+ls -la venv/bin/python*
 
 success "Virtual environment created successfully"
 
@@ -192,6 +200,7 @@ log "Step 6: Verifying installation"
 log "Step 7: Testing the application"
 
 # Test if the app can start
+log "Testing application import..."
 timeout 10s ./venv/bin/python -c "
 import sys
 sys.path.append('.')
