@@ -7,6 +7,7 @@ import redis
 import calendar
 import math
 from app.core.config import settings
+import re
 
 class ClimateDataService:
     def __init__(self):
@@ -143,6 +144,47 @@ class ClimateDataService:
                 print(f"Geocoding error for {location_name}: {e}")
                 return None
                 
+        # Fallback to hardcoded coordinates for common cities
+        fallback_coordinates = {
+            "london": {"name": "London", "country": "United Kingdom", "latitude": 51.5074, "longitude": -0.1278, "timezone": "Europe/London"},
+            "new york": {"name": "New York", "country": "United States", "latitude": 40.7128, "longitude": -74.0060, "timezone": "America/New_York"},
+            "paris": {"name": "Paris", "country": "France", "latitude": 48.8566, "longitude": 2.3522, "timezone": "Europe/Paris"},
+            "tokyo": {"name": "Tokyo", "country": "Japan", "latitude": 35.6762, "longitude": 139.6503, "timezone": "Asia/Tokyo"},
+            "sydney": {"name": "Sydney", "country": "Australia", "latitude": -33.8688, "longitude": 151.2093, "timezone": "Australia/Sydney"},
+            "mumbai": {"name": "Mumbai", "country": "India", "latitude": 19.0760, "longitude": 72.8777, "timezone": "Asia/Kolkata"},
+            "beijing": {"name": "Beijing", "country": "China", "latitude": 39.9042, "longitude": 116.4074, "timezone": "Asia/Shanghai"},
+            "moscow": {"name": "Moscow", "country": "Russia", "latitude": 55.7558, "longitude": 37.6176, "timezone": "Europe/Moscow"},
+            "cairo": {"name": "Cairo", "country": "Egypt", "latitude": 30.0444, "longitude": 31.2357, "timezone": "Africa/Cairo"}
+        }
+
+        def normalize_location(loc: str) -> str:
+            loc = loc.lower().strip()
+            loc = re.sub(r'[^a-z ]', '', loc)
+            loc = re.sub(r'\s+', ' ', loc).strip()
+            return loc
+
+        location_normalized = normalize_location(location_name)
+
+        # Try exact match
+        if location_normalized in fallback_coordinates:
+            print(f"Using fallback coordinates for {location_name} (normalized exact)")
+            return fallback_coordinates[location_normalized]
+
+        # Try flexible match: check if the normalized location starts with a city name or contains it as a word
+        for key in fallback_coordinates:
+            if location_normalized.startswith(key) or f" {key} " in f" {location_normalized} ":
+                print(f"Using fallback coordinates for {location_name} (flexible match: {key})")
+                return fallback_coordinates[key]
+
+        # Try if any fallback key is a substring of the normalized location (last resort)
+        for key in fallback_coordinates:
+            if key in location_normalized:
+                print(f"Using fallback coordinates for {location_name} (substring match: {key})")
+                return fallback_coordinates[key]
+
+        print(f"No fallback coordinates available for {location_name}")
+        print(f"Debug: location_normalized='{location_normalized}'")
+        print(f"Debug: Available fallback keys: {list(fallback_coordinates.keys())}")
         return None
     
     async def get_historical_climate_baseline(self, latitude: float, longitude: float) -> Optional[Dict]:
@@ -637,7 +679,8 @@ class ClimateDataService:
         
         current_month = recent_data.get("current_month", datetime.now().month)
         recent_month_data = recent_data.get("current_month_data", {})
-        baseline_monthly = baseline_data.get("monthly_baselines", {}).get(str(current_month), {})
+        baseline_monthly = baseline_data.get("monthly_baselines", {})
+        baseline_monthly = baseline_monthly.get(str(current_month), {})
         
         # Calculate temperature variations (°C)
         temp_max_variation = recent_month_data.get("avg_temp_max", 15.0) - baseline_monthly.get("avg_temp_max", 15.0)
