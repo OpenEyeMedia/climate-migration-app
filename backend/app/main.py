@@ -7,6 +7,7 @@ import os
 import redis
 from datetime import datetime
 import json
+from app.core.config import settings
 
 app = FastAPI(
     title="Climate Migration API",
@@ -17,7 +18,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://climate-migration-app.openeyemedia.net", "http://localhost:3000"],
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

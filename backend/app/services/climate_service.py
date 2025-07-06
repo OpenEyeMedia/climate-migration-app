@@ -20,6 +20,56 @@ class ClimateDataService:
             self.use_cache = False
         self.cache_ttl = 3600 * 24  # 24 hours
         
+    async def search_locations(self, query: str, limit: int = 10) -> List[Dict]:
+        """Search for locations using geocoding API"""
+        cache_key = f"location_search:{query.lower()}"
+        
+        # Check cache first (if available)
+        if self.use_cache and self.redis_client:
+            cached_data = self.redis_client.get(cache_key)
+            if cached_data:
+                return json.loads(cached_data)
+        
+        async with httpx.AsyncClient() as client:
+            try:
+                url = f"{settings.geocoding_api_url}/search"
+                params = {
+                    "name": query,
+                    "count": limit,
+                    "language": "en",
+                    "format": "json"
+                }
+                
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                
+                data = response.json()
+                locations = []
+                
+                if data.get("results"):
+                    for result in data["results"]:
+                        location = {
+                            "name": result.get("name"),
+                            "country": result.get("country"),
+                            "admin1": result.get("admin1"),
+                            "latitude": result.get("latitude"),
+                            "longitude": result.get("longitude"),
+                            "population": result.get("population"),
+                            "timezone": result.get("timezone"),
+                            "display_name": f"{result.get('name')}, {result.get('admin1', '')}, {result.get('country', '')}".strip(", ")
+                        }
+                        locations.append(location)
+                
+                # Cache the results (if available)
+                if self.use_cache and self.redis_client:
+                    self.redis_client.setex(cache_key, 3600, json.dumps(locations))
+                
+                return locations
+                
+            except Exception as e:
+                print(f"Location search error for {query}: {e}")
+                return []
+    
     async def get_location_coordinates(self, location_name: str) -> Optional[Dict]:
         """Get coordinates for a location using geocoding API"""
         cache_key = f"geocoding:{location_name.lower()}"
@@ -246,6 +296,12 @@ class ClimateDataService:
                 if self.use_cache and self.redis_client:
                     self.redis_client.setex(cache_key, 3600, json.dumps(climate_data))
                 
+                return climate_data
+                
+            except Exception as e:
+                print(f"Current climate data error for {latitude}, {longitude}: {e}")
+                return None
+    
     async def get_recent_climate_averages(self, latitude: float, longitude: float) -> Optional[Dict]:
         """Get recent 5-year climate averages (2020-2024) for comparison"""
         cache_key = f"recent_climate:{latitude}:{longitude}"

@@ -108,8 +108,29 @@ log "Step 5: Installing dependencies"
 
 # Install backend dependencies
 cd backend
+
+# Check if virtual environment exists and is properly set up
+if [ ! -f "venv/bin/activate" ]; then
+    log "Creating virtual environment..."
+    python3 -m venv venv
+fi
+
+# Activate virtual environment and install dependencies
 source venv/bin/activate
-pip install -r requirements.txt
+
+# Verify we're using the virtual environment
+log "Verifying virtual environment..."
+which python
+which pip
+
+# Use the virtual environment's pip explicitly
+log "Installing Python dependencies..."
+./venv/bin/pip install --upgrade pip
+./venv/bin/pip install -r requirements.txt
+
+# Verify installation
+log "Verifying installation..."
+./venv/bin/pip list | grep -E "(fastapi|uvicorn|httpx)"
 
 # Install frontend dependencies
 cd ../frontend
@@ -133,7 +154,7 @@ pm2 stop climate-backend climate-frontend 2>/dev/null || true
 
 # Start backend
 cd ../backend
-pm2 start "venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000" --name climate-backend
+pm2 start "venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000" --name climate-backend
 
 # Start frontend
 cd ../frontend

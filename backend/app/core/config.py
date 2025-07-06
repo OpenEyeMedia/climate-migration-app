@@ -13,8 +13,13 @@ class Settings(BaseSettings):
     
     # App settings
     secret_key: str = "your-secret-key-change-this-in-production"
-    cors_origins: List[str] = ["https://climate-migration-app.openeyemedia.net", "http://localhost:3000"]
+    cors_origins: str = "https://climate-migration-app.openeyemedia.net,http://localhost:3000"
     environment: str = "development"
+    
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """Convert comma-separated CORS origins string to list"""
+        return [origin.strip() for origin in self.cors_origins.split(",")]
     
     # Rate limiting
     requests_per_minute: int = 60
@@ -22,5 +27,6 @@ class Settings(BaseSettings):
     
     class Config:
         env_file = ".env"
+        extra = "ignore"  # Ignore extra fields from .env
 
 settings = Settings()
