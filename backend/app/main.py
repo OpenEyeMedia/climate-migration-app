@@ -4,6 +4,9 @@ import httpx
 import asyncio
 from typing import Dict, Optional
 import os
+import redis
+from datetime import datetime
+import json
 
 app = FastAPI(
     title="Climate Migration API",
@@ -31,7 +34,107 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "timestamp": "2025-07-05"}
+    """Basic health check"""
+    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+
+@app.get("/health/comprehensive")
+async def comprehensive_health():
+    """Comprehensive health check for all services"""
+    health_status = {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "checks": {},
+        "version": "1.0.0"
+    }
+    
+    # Check Redis
+    try:
+        from app.core.config import settings
+        r = redis.from_url(settings.redis_url)
+        r.ping()
+        health_status["checks"]["redis"] = {
+            "status": "healthy",
+            "message": "Redis connection successful"
+        }
+    except Exception as e:
+        health_status["checks"]["redis"] = {
+            "status": "degraded",
+            "message": f"Redis unavailable: {str(e)}"
+        }
+        health_status["status"] = "degraded"
+    
+    # Check external APIs
+    try:
+        async with httpx.AsyncClient() as client:
+            # Test Open-Meteo Geocoding API
+            response = await client.get(
+                "https://geocoding-api.open-meteo.com/v1/search?name=London&count=1",
+                timeout=5.0
+            )
+            response.raise_for_status()
+            health_status["checks"]["openmeteo_geocoding"] = {
+                "status": "healthy",
+                "message": "Open-Meteo Geocoding API responding"
+            }
+    except Exception as e:
+        health_status["checks"]["openmeteo_geocoding"] = {
+            "status": "unhealthy",
+            "message": f"Open-Meteo Geocoding API error: {str(e)}"
+        }
+        health_status["status"] = "degraded"
+    
+    # Check climate API
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://api.open-meteo.com/v1/forecast?latitude=51.5074&longitude=-0.1278&current=temperature_2m",
+                timeout=5.0
+            )
+            response.raise_for_status()
+            health_status["checks"]["openmeteo_climate"] = {
+                "status": "healthy",
+                "message": "Open-Meteo Climate API responding"
+            }
+    except Exception as e:
+        health_status["checks"]["openmeteo_climate"] = {
+            "status": "unhealthy",
+            "message": f"Open-Meteo Climate API error: {str(e)}"
+        }
+        health_status["status"] = "degraded"
+    
+    # Check internal services
+    try:
+        from app.services.climate_service import ClimateDataService
+        service = ClimateDataService()
+        health_status["checks"]["climate_service"] = {
+            "status": "healthy",
+            "message": "Climate service initialized successfully"
+        }
+    except Exception as e:
+        health_status["checks"]["climate_service"] = {
+            "status": "unhealthy",
+            "message": f"Climate service error: {str(e)}"
+        }
+        health_status["status"] = "degraded"
+    
+    return health_status
+
+@app.get("/health/live")
+async def liveness_check():
+    """Simple liveness check for Kubernetes"""
+    return {"status": "alive", "timestamp": datetime.utcnow().isoformat()}
+
+@app.get("/health/ready")
+async def readiness_check():
+    """Readiness check for Kubernetes"""
+    try:
+        # Quick Redis check
+        from app.core.config import settings
+        r = redis.from_url(settings.redis_url)
+        r.ping()
+        return {"status": "ready", "timestamp": datetime.utcnow().isoformat()}
+    except Exception:
+        return {"status": "not ready", "timestamp": datetime.utcnow().isoformat()}
 
 @app.get("/test")
 async def test():
