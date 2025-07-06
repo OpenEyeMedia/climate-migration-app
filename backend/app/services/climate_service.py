@@ -132,17 +132,17 @@ class ClimateDataService:
                     return location_data
                 else:
                     print(f"No results found for location: {location_name}")
-                    return None
+                    # Don't return None here, let it fall through to fallback logic
                     
             except httpx.HTTPStatusError as e:
                 print(f"HTTP error for geocoding {location_name}: {e.response.status_code} - {e.response.text}")
-                return None
+                # Don't return None here, let it fall through to fallback logic
             except httpx.RequestError as e:
                 print(f"Request error for geocoding {location_name}: {e}")
-                return None
+                # Don't return None here, let it fall through to fallback logic
             except Exception as e:
                 print(f"Geocoding error for {location_name}: {e}")
-                return None
+                # Don't return None here, let it fall through to fallback logic
                 
         # Fallback to hardcoded coordinates for common cities
         fallback_coordinates = {
