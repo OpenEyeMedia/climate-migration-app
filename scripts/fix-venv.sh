@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-DEPLOY_DIR="/root/climate-migration-app"
+DEPLOY_DIR="/root/climate-adaptation-app"
 LOG_FILE="/var/log/climate-app-venv-fix.log"
 
 # Colors for output
@@ -37,9 +37,9 @@ echo -e "${BLUE}🐍 Virtual Environment Fix Script${NC}"
 echo "======================================"
 
 # Check if we're on the production server
-if [ ! -d "$DEPLOY_DIR" ]; then
-    error "This script should be run on the production server"
-fi
+# if [ ! -d "$DEPLOY_DIR" ]; then
+#     error "This script should be run on the production server"
+# fi
 
 log "Step 1: Checking current Python environment"
 
@@ -69,10 +69,28 @@ fi
 log "Step 3: Creating fresh virtual environment"
 
 # Create new virtual environment
+log "Creating virtual environment with python3 -m venv venv..."
 python3 -m venv venv
 
 if [ $? -ne 0 ]; then
     error "Failed to create virtual environment"
+fi
+
+# Verify virtual environment was created properly
+if [ ! -d "venv" ]; then
+    error "Virtual environment directory was not created"
+fi
+
+if [ ! -f "venv/bin/activate" ]; then
+    error "Virtual environment activation script not found"
+fi
+
+if [ ! -f "venv/bin/python" ]; then
+    error "Virtual environment Python executable not found"
+fi
+
+if [ ! -f "venv/bin/pip" ]; then
+    error "Virtual environment pip executable not found"
 fi
 
 success "Virtual environment created successfully"
@@ -95,10 +113,17 @@ fi
 
 log "Step 5: Installing dependencies"
 
+# Check if pip exists in virtual environment
+if [ ! -f "venv/bin/pip" ]; then
+    error "pip not found in virtual environment. Virtual environment may be corrupted."
+fi
+
 # Upgrade pip first
+log "Upgrading pip..."
 ./venv/bin/pip install --upgrade pip
 
 # Install requirements
+log "Installing requirements..."
 ./venv/bin/pip install -r requirements.txt
 
 if [ $? -ne 0 ]; then

@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-DEPLOY_DIR="/root/climate-migration-app"
+DEPLOY_DIR="/root/climate-adaptation-app"
 LOG_FILE="/var/log/climate-app-fix.log"
 
 # Colors for output
@@ -37,9 +37,9 @@ echo -e "${BLUE}🔧 Production Fix Script for Climate Adaptation App${NC}"
 echo "=========================================================="
 
 # Check if we're on the production server
-if [ ! -d "$DEPLOY_DIR" ]; then
-    error "This script should be run on the production server"
-fi
+# if [ ! -d "$DEPLOY_DIR" ]; then
+#     error "This script should be run on the production server"
+# fi
 
 log "Step 1: Checking current nginx configuration"
 
@@ -113,6 +113,11 @@ cd backend
 if [ ! -f "venv/bin/activate" ]; then
     log "Creating virtual environment..."
     python3 -m venv venv
+    
+    # Verify virtual environment was created properly
+    if [ ! -f "venv/bin/pip" ]; then
+        error "Virtual environment pip executable not found"
+    fi
 fi
 
 # Activate virtual environment and install dependencies
@@ -122,6 +127,11 @@ source venv/bin/activate
 log "Verifying virtual environment..."
 which python
 which pip
+
+# Check if pip exists in virtual environment
+if [ ! -f "venv/bin/pip" ]; then
+    error "pip not found in virtual environment. Virtual environment may be corrupted."
+fi
 
 # Use the virtual environment's pip explicitly
 log "Installing Python dependencies..."
