@@ -74,7 +74,7 @@ class ClimateDataService:
     async def get_location_coordinates(self, location_name: str) -> Optional[Dict]:
         """Get coordinates for a location using geocoding API"""
         cache_key = f"geocoding:{location_name.lower()}"
-        
+
         # Check cache first (if available)
         if self.use_cache and self.redis_client:
             try:
@@ -83,7 +83,7 @@ class ClimateDataService:
                     return json.loads(cached_data)
             except Exception as e:
                 print(f"Cache read error: {e}")
-        
+
         async with httpx.AsyncClient(timeout=10.0) as client:
             try:
                 url = f"{settings.geocoding_api_url}/search"
@@ -93,18 +93,13 @@ class ClimateDataService:
                     "language": "en",
                     "format": "json"
                 }
-                
                 print(f"Making geocoding request to: {url}")
                 print(f"Parameters: {params}")
-                
                 response = await client.get(url, params=params)
                 print(f"Geocoding response status: {response.status_code}")
-                
                 response.raise_for_status()
-                
                 data = response.json()
                 print(f"Geocoding response data: {data}")
-                
                 if data.get("results") and len(data["results"]) > 0:
                     result = data["results"][0]
                     location_data = {
@@ -115,9 +110,7 @@ class ClimateDataService:
                         "population": result.get("population"),
                         "timezone": result.get("timezone")
                     }
-                    
                     print(f"Found location data: {location_data}")
-                    
                     # Cache the result (if available)
                     if self.use_cache and self.redis_client:
                         try:
@@ -128,64 +121,13 @@ class ClimateDataService:
                             )
                         except Exception as e:
                             print(f"Cache write error: {e}")
-                    
                     return location_data
                 else:
                     print(f"No results found for location: {location_name}")
-                    # Don't return None here, let it fall through to fallback logic
-                    
-            except httpx.HTTPStatusError as e:
-                print(f"HTTP error for geocoding {location_name}: {e.response.status_code} - {e.response.text}")
-                # Don't return None here, let it fall through to fallback logic
-            except httpx.RequestError as e:
-                print(f"Request error for geocoding {location_name}: {e}")
-                # Don't return None here, let it fall through to fallback logic
+                    return None
             except Exception as e:
                 print(f"Geocoding error for {location_name}: {e}")
-                # Don't return None here, let it fall through to fallback logic
-                
-        # Fallback to hardcoded coordinates for common cities
-        fallback_coordinates = {
-            "london": {"name": "London", "country": "United Kingdom", "latitude": 51.5074, "longitude": -0.1278, "timezone": "Europe/London"},
-            "new york": {"name": "New York", "country": "United States", "latitude": 40.7128, "longitude": -74.0060, "timezone": "America/New_York"},
-            "paris": {"name": "Paris", "country": "France", "latitude": 48.8566, "longitude": 2.3522, "timezone": "Europe/Paris"},
-            "tokyo": {"name": "Tokyo", "country": "Japan", "latitude": 35.6762, "longitude": 139.6503, "timezone": "Asia/Tokyo"},
-            "sydney": {"name": "Sydney", "country": "Australia", "latitude": -33.8688, "longitude": 151.2093, "timezone": "Australia/Sydney"},
-            "mumbai": {"name": "Mumbai", "country": "India", "latitude": 19.0760, "longitude": 72.8777, "timezone": "Asia/Kolkata"},
-            "beijing": {"name": "Beijing", "country": "China", "latitude": 39.9042, "longitude": 116.4074, "timezone": "Asia/Shanghai"},
-            "moscow": {"name": "Moscow", "country": "Russia", "latitude": 55.7558, "longitude": 37.6176, "timezone": "Europe/Moscow"},
-            "cairo": {"name": "Cairo", "country": "Egypt", "latitude": 30.0444, "longitude": 31.2357, "timezone": "Africa/Cairo"}
-        }
-
-        def normalize_location(loc: str) -> str:
-            loc = loc.lower().strip()
-            loc = re.sub(r'[^a-z ]', '', loc)
-            loc = re.sub(r'\s+', ' ', loc).strip()
-            return loc
-
-        location_normalized = normalize_location(location_name)
-
-        # Try exact match
-        if location_normalized in fallback_coordinates:
-            print(f"Using fallback coordinates for {location_name} (normalized exact)")
-            return fallback_coordinates[location_normalized]
-
-        # Try flexible match: check if the normalized location starts with a city name or contains it as a word
-        for key in fallback_coordinates:
-            if location_normalized.startswith(key) or f" {key} " in f" {location_normalized} ":
-                print(f"Using fallback coordinates for {location_name} (flexible match: {key})")
-                return fallback_coordinates[key]
-
-        # Try if any fallback key is a substring of the normalized location (last resort)
-        for key in fallback_coordinates:
-            if key in location_normalized:
-                print(f"Using fallback coordinates for {location_name} (substring match: {key})")
-                return fallback_coordinates[key]
-
-        print(f"No fallback coordinates available for {location_name}")
-        print(f"Debug: location_normalized='{location_normalized}'")
-        print(f"Debug: Available fallback keys: {list(fallback_coordinates.keys())}")
-        return None
+                return None
     
     async def get_historical_climate_baseline(self, latitude: float, longitude: float) -> Optional[Dict]:
         """Get historical climate baseline (1990 or earliest available)"""
