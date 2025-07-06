@@ -269,14 +269,14 @@ const ClimateApp = () => {
       // Update API status
       setApiStatus(prev => ({ ...prev, climate: 'connecting' }));
       
-      // Fetch analysis for current location using display name
-      const currentData = await fetchClimateAnalysis(currentLocation.display_name);
+      // Fetch analysis for current location using city name only
+      const currentData = await fetchClimateAnalysis(currentLocation.name);
       setCurrentAnalysis(currentData);
       
       // Fetch analysis for target location if provided
       let targetData = null;
       if (targetLocation) {
-        targetData = await fetchClimateAnalysis(targetLocation.display_name);
+        targetData = await fetchClimateAnalysis(targetLocation.name);
         setTargetAnalysis(targetData);
       }
       
