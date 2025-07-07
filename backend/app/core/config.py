@@ -11,6 +11,15 @@ class Settings(BaseSettings):
     geocoding_api_url: str = "https://geocoding-api.open-meteo.com/v1"
     world_bank_api_url: str = "https://climateknowledgeportal.worldbank.org/api"
     
+    # Environment variables from .env file
+    port: str = "8000"
+    node_env: str = "development"
+    weather_api_url: str = "https://api.open-meteo.com/v1"
+    climate_api_url: str = "https://climate-api.open-meteo.com/v1"
+    archive_api_url: str = "https://archive-api.open-meteo.com/v1"
+    max_requests_per_minute: str = "100"
+    max_requests_per_hour: str = "1000"
+    
     # App settings
     secret_key: str = "your-secret-key-change-this-in-production"
     cors_origins: str = "https://climate-migration-app.openeyemedia.net,http://localhost:3000"

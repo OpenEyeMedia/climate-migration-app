@@ -38,15 +38,27 @@ async def analyze_location(query: LocationQuery):
                 admin1=query.admin1 or "Unknown"
             )
         else:
-            # Fall back to geocoding by name
+            # Geocode to get lat/lon if not provided
             location_name = query.name or query.location
             if not location_name:
                 raise HTTPException(
                     status_code=400,
                     detail="Either coordinates (latitude/longitude) or location name must be provided"
                 )
-            print(f"Using geocoding for location: {location_name}")
-            analysis = await service.get_comprehensive_climate_analysis(location_name)
+            print(f"Geocoding for location: {location_name}")
+            location_data = await service.get_location_coordinates(location_name)
+            if location_data and location_data.get("latitude") is not None and location_data.get("longitude") is not None:
+                print(f"Geocoding successful: {location_data}")
+                analysis = await service.get_comprehensive_climate_analysis_by_coords(
+                    location_data["latitude"],
+                    location_data["longitude"],
+                    name=location_data.get("name", "Unknown"),
+                    country=location_data.get("country", "Unknown"),
+                    admin1=location_data.get("admin1", "Unknown")
+                )
+            else:
+                print(f"Geocoding failed, falling back to name-based analysis for: {location_name}")
+                analysis = await service.get_comprehensive_climate_analysis(location_name)
         
         if not analysis:
             location_display = query.name or query.location or "Unknown"

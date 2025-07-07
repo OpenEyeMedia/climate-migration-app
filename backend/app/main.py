@@ -233,11 +233,23 @@ async def analyze_location(request: Request):
             return {"success": False, "error": f"Could not find climate data for coordinates: {lat}, {lon}"}
         return {"success": True, "data": analysis}
     elif name:
-        # Fallback: use name/country/admin1
+        # Geocode to get lat/lon if not provided
         location_str = f"{name}, {admin1}, {country}" if admin1 else f"{name}, {country}"
         from app.services.climate_service import ClimateDataService
         service = ClimateDataService()
-        analysis = await service.get_comprehensive_climate_analysis(location_str)
+        location_data = await service.get_location_coordinates(location_str)
+        if location_data and location_data.get("latitude") is not None and location_data.get("longitude") is not None:
+            print(f"Geocoding successful: {location_data}")
+            analysis = await service.get_comprehensive_climate_analysis_by_coords(
+                location_data["latitude"],
+                location_data["longitude"],
+                name=location_data.get("name", "Unknown"),
+                country=location_data.get("country", "Unknown"),
+                admin1=location_data.get("admin1", "Unknown")
+            )
+        else:
+            print(f"Geocoding failed, falling back to name-based analysis for: {location_str}")
+            analysis = await service.get_comprehensive_climate_analysis(location_str)
         if not analysis:
             return {"success": False, "error": f"Could not find climate data for location: {location_str}"}
         return {"success": True, "data": analysis}
