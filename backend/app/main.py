@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
 import asyncio
@@ -8,6 +8,7 @@ import redis
 from datetime import datetime
 import json
 from app.core.config import settings
+import logging
 
 app = FastAPI(
     title="Climate Migration API",
@@ -23,6 +24,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add logging middleware to log all requests and responses
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    body = await request.body()
+    logging.info(f"Request: {request.method} {request.url} Body: {body.decode(errors='replace')}")
+    response = await call_next(request)
+    response_body = b""
+    async for chunk in response.body_iterator:
+        response_body += chunk
+    logging.info(f"Response status: {response.status_code} Body: {response_body.decode(errors='replace')}")
+    # Rebuild the response for the client
+    return Response(content=response_body, status_code=response.status_code, headers=dict(response.headers), media_type=response.media_type)
 
 @app.get("/")
 async def root():
